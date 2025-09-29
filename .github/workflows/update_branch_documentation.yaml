@@ -16,8 +16,8 @@ jobs:
 
       - name: Generate BRANCHES.md
         run: |
-          chmod +x .github/scripts/bash/update_branches.sh
-          .github/scripts/bash/update_branches.sh
+          chmod +x .github/scripts/bash/get_branch_desc.sh
+          .github/scripts/bash/get_branch_desc.sh
 
       - name: Commit changes
         run: |
