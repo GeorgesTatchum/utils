@@ -5,7 +5,7 @@ echo "" >> BRANCHES.md
 
 for branch in $(git branch -r | grep -v '\->'); do
     branch_name=$(echo $branch | sed 's#origin/##')
-    desc=$(git log $branch_name --grep="^desc:" --pretty=format:"%s" -1)
+    desc=$(git log origin/$branch_name --grep="^desc:" --pretty=format:"%s" -1)
     if [ -z "$desc" ]; then
         desc="(Pas de description)"
     else
@@ -13,3 +13,4 @@ for branch in $(git branch -r | grep -v '\->'); do
     fi
     echo "- **$branch_name** : $desc" >> BRANCHES.md
 done
+
