@@ -1,0 +1,28 @@
+name: Update Branches Documentation
+
+on:
+  push:
+    branches: [ main, develop, "*" ]
+  delete:
+
+jobs:
+  update-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate BRANCHES.md
+        run: |
+          chmod +x .github/scripts/bash/update_branches.sh
+          .github/scripts/bash/update_branches.sh
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add BRANCHES.md
+          git commit -m "chore: update BRANCHES.md [skip ci]" || echo "No changes"
+          git push
