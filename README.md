@@ -11,7 +11,7 @@
 1. **Cloner le dépot**
     ```bash
     git clone https://github.com/GeorgesTatchum/utils.git
-    cd utils
+    cd utils && mkdir linux_data
     ```
 
 2. **Démarrer la VM :**
