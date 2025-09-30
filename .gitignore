@@ -182,3 +182,5 @@ pyrightconfig.json
 
 ### linux ###
 linux_data
+
+*.sql
