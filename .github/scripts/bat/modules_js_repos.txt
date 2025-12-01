@@ -1,0 +1,5 @@
+# Liste des dépôts à cloner (une URL par ligne)
+# Remplacez ces URL par les trois dépôts Git que vous voulez cloner
+https://github.com/oneorthomedical/plannerHip2D.git
+https://github.com/oneorthomedical/plannerHip3D.git
+https://github.com/oneorthomedical/plannerKneeMadison.git
