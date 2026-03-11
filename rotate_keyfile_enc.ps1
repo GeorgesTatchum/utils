@@ -27,7 +27,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $encDir     = "$BasePath\$MariaDBVersion\encryption"
-$LogPath    = "$encDir\logs\tde-rotation.log"
+$logDir     = "$encDir\logs"
+$LogPath    = "$logDir\tde-rotation.log"
+$CycleLog   = "$logDir\tde-rotation-$((Get-Date -Format 'yyyyMMdd-HHmmss')).log"
 $keyfileTmp = "$encDir\keyfile.tmp"
 $keyfileEnc = "$encDir\keyfile.enc"
 $keyfileKey = "$encDir\keyfile.key"
@@ -37,12 +39,13 @@ $mysqlExe   = "$BasePath\$MariaDBVersion\bin\mysql.exe"
 $timestamp  = Get-Date -Format "yyyyMMdd-HHmmss"
 
 # --- Fonction de journalisation (audit trail FDA) ---
+# Ecrit dans le log principal (historique complet) ET dans le log du cycle courant
 function Write-AuditLog {
     param([string]$Message)
     $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$(whoami)] $Message"
-    $logDir = Split-Path $LogPath -Parent
     if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
-    Add-Content -Path $LogPath -Value $entry
+    Add-Content -Path $LogPath  -Value $entry
+    Add-Content -Path $CycleLog -Value $entry
     Write-Host $entry
 }
 
@@ -172,6 +175,14 @@ try {
     $keyCheck = (& $mysqlExe -u root -N -B -e "SHOW GLOBAL VARIABLES LIKE 'innodb_default_encryption_key_id';" 2>$null)
     Write-AuditLog "Verification innodb_default_encryption_key_id: $keyCheck"
 
+    # --- Snapshot AVANT re-chiffrement (preuve FDA) ---
+    Write-AuditLog "--- SNAPSHOT CHIFFREMENT AVANT RE-CHIFFREMENT ---"
+    $encStatusQuery = "SELECT NAME AS 'Table/Space', ENCRYPTION_SCHEME AS 'Encrypted', CURRENT_KEY_ID AS 'KeyID', ROTATING_OR_FLUSHING AS 'Rotating' FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION;"
+    $encStatusBefore = @(& $mysqlExe -u root -e $encStatusQuery 2>$null)
+    foreach ($row in $encStatusBefore) {
+        Write-AuditLog "  $row"
+    }
+
     # PHASE 3 : Re-chiffrer les tables existantes avec le nouveau key_id
 
     $query = "SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE='InnoDB' AND TABLE_SCHEMA NOT IN ('information_schema','performance_schema','sys');"
@@ -199,7 +210,15 @@ try {
     }
     Write-AuditLog "Re-chiffrement: $tableCount table(s) OK, $errorCount echec(s)"
 
+    # --- Snapshot APRES re-chiffrement (preuve FDA) ---
+    Write-AuditLog "--- SNAPSHOT CHIFFREMENT APRES RE-CHIFFREMENT ---"
+    $encStatusAfter = @(& $mysqlExe -u root -e $encStatusQuery 2>$null)
+    foreach ($row in $encStatusAfter) {
+        Write-AuditLog "  $row"
+    }
+
     Write-AuditLog "=== ROTATION TERMINEE AVEC SUCCES (key_id=$newKeyId) ==="
+    Write-AuditLog "Log de ce cycle : $CycleLog"
 
 } catch {
     $errorMessage = $_.Exception.Message
