@@ -89,7 +89,7 @@ MariaDB utilise une architecture à **plugins** pour la gestion des clés de chi
   - `FORCE` : interdit la création de tables non chiffrées.
 - **`innodb_encrypt_log = ON`** : chiffre les redo logs InnoDB.
 - **`innodb_encryption_threads`** : nombre de threads dédiés au chiffrement/déchiffrement en arrière-plan (rotation de clés, chiffrement des tables existantes).
-- **`innodb_encryption_rotate_key_age`** : âge (en versions de clés) au-delà duquel les tables sont automatiquement re-chiffrées avec la dernière version.
+- **`innodb_encryption_rotate_key_age`** : fonctionne avec les plugins KMS (AWS, HashiCorp) qui gèrent le versioning interne des clés. Avec `file_key_management`, la rotation se fait par **changement de `key_id`** (voir Section 5).
 
 ### 3.3 Chiffrement des tables Aria
 
@@ -489,7 +489,7 @@ Ajouter dans le fichier de configuration du serveur client :
 innodb_encrypt_tables = ON            # ON = chiffre par défaut, FORCE = interdit les tables non chiffrées
 innodb_encrypt_log = ON               # Chiffrer les redo logs
 innodb_encryption_threads = 4         # Threads de chiffrement en arrière-plan (adapter selon CPU)
-innodb_encryption_rotate_key_age = 1  # Re-chiffrer dès qu'une nouvelle version de clé est disponible
+innodb_encryption_rotate_key_age = 1  # Utile avec plugins KMS. Avec file_key_management, la rotation se fait par changement de key_id (voir Section 5)
 
 # --- Chiffrement Aria (tables temporaires) ---
 aria_encrypt_tables = ON
@@ -665,33 +665,55 @@ Dans un environnement de manipulation de **données médicales** (SaMD, disposit
 
 > **Résumé** : rotation **trimestrielle** de la clé de données + rotation **annuelle** de la clé d'enveloppe + rotation **immédiate** en cas d'incident. Documenter chaque rotation dans un **journal d'audit** (exigence 21 CFR Part 11).
 
-### 5.3 Mécanisme de versioning des clés MariaDB
+### 5.3 Mécanisme de rotation avec `file_key_management`
 
-MariaDB supporte le **versioning des clés** dans le fichier de clés `file_key_management`. Le format est :
+> **Attention** : le plugin `file_key_management` **ne gère PAS les versions de clés**. Le format à 3 champs (`key_id;version;hex`) n'est **pas supporté**. Le paramètre `innodb_encryption_rotate_key_age` ne fonctionne qu'avec les plugins KMS d'entreprise (AWS KMS, HashiCorp Vault, etc.) qui gèrent le versioning en interne.
 
-```
-<key_id>;<key_version>;<hex_encoded_key>
-```
-
-Quand le champ `key_version` est absent (format `<key_id>;<key>`) , la version est **1** par défaut.
-
-Pour effectuer une rotation, on **ajoute une nouvelle version** de la même clé :
+**Format supporté** — une seule possibilité :
 
 ```
-1;1;ancienne_cle_hex_64_caracteres
-1;2;nouvelle_cle_hex_64_caracteres
+<key_id>;<hex_encoded_key>
 ```
 
-Avec `innodb_encryption_rotate_key_age = 1`, MariaDB **re-chiffre automatiquement** toutes les tables avec la dernière version de la clé, **sans interruption de service**.
+**Mécanisme de rotation** : au lieu de versionner une même clé, on **ajoute une nouvelle clé avec un nouvel ID** (1, 2, 3...) et on bascule MariaDB dessus.
+
+**Étapes de rotation :**
+
+1. Ajouter une nouvelle ligne `<nouveau_key_id>;<nouvelle_clé_hex>` dans le fichier de clés
+2. Re-chiffrer le fichier avec la clé d'enveloppe (`keyfile.key`)
+3. Changer la clé par défaut : `SET GLOBAL innodb_default_encryption_key_id = <nouveau_key_id>;`
+4. Re-chiffrer les tables existantes : `ALTER TABLE <table> ENCRYPTION_KEY_ID=<nouveau_key_id>;`
+
+> **Important** : les anciennes clés doivent **rester dans le fichier** pour que MariaDB puisse lire les tables encore chiffrées avec elles pendant la transition et pour les restaurations de sauvegardes.
+
+**Évolution du fichier de clés au fil des rotations :**
+
+```
+# État initial (1 seule clé, key_id=1)
+1;ca00376654ebdba401a0a1d2298c8eb0a2fa06bd105c5a66a00a5585caf2ece0
+
+# Après 1ère rotation → ajout key_id=2, MariaDB bascule dessus
+1;ca00376654ebdba401a0a1d2298c8eb0a2fa06bd105c5a66a00a5585caf2ece0
+2;nouvelle_cle_hex_64_caracteres
+
+# Après 2ème rotation → ajout key_id=3
+1;ca00376654ebdba401a0a1d2298c8eb0a2fa06bd105c5a66a00a5585caf2ece0
+2;nouvelle_cle_hex_64_caracteres
+3;encore_une_nouvelle_cle_hex_64_caracteres
+```
+
+Après re-chiffrement de toutes les tables avec le dernier `key_id`, les anciens IDs ne sont plus activement utilisés mais restent nécessaires pour les restaurations de backups historiques.
 
 ### 5.4 Script de rotation des clés — Windows (PowerShell)
 
-Ce script effectue la rotation complète : génération d'une nouvelle version de clé, re-chiffrement du fichier, et journalisation pour conformité FDA/21 CFR Part 11.
+Ce script effectue la rotation complète : ajout d'un nouveau key_id, re-chiffrement du fichier, bascule MariaDB sur la nouvelle clé, et journalisation pour conformité FDA/21 CFR Part 11.
 
 ```powershell
 <#
 .SYNOPSIS
     Rotation périodique de la clé de chiffrement MariaDB TDE (file_key_management).
+    Le plugin file_key_management ne gère PAS les versions de clés.
+    La rotation se fait par ajout d'un NOUVEL ID de clé (1, 2, 3...).
     Conforme FDA 21 CFR Part 11 / NIST SP 800-57.
 
 .NOTES
@@ -707,8 +729,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$encDir  = "$BasePath\$MariaDBVersion\encryption"
-$keyfile = "$encDir\keyfile"
+$encDir     = "$BasePath\$MariaDBVersion\encryption"
+$keyfileTmp = "$encDir\keyfile.tmp"
 $keyfileEnc = "$encDir\keyfile.enc"
 $keyfileKey = "$encDir\keyfile.key"
 $backupDir  = "$encDir\backups"
@@ -725,36 +747,39 @@ function Write-AuditLog {
 }
 
 try {
-    Write-AuditLog "=== DÉBUT ROTATION DE CLÉ TDE ==="
+    Write-AuditLog "=== DEBUT ROTATION DE CLE TDE ==="
 
     # --- 1. Sauvegarder les fichiers actuels ---
     if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Force -Path $backupDir | Out-Null }
     Copy-Item $keyfileEnc "$backupDir\keyfile.enc.$timestamp" -Force
     Copy-Item $keyfileKey "$backupDir\keyfile.key.$timestamp" -Force
-    Write-AuditLog "Backup des clés existantes dans $backupDir"
+    Write-AuditLog "Backup des cles existantes dans $backupDir"
 
     # --- 2. Déchiffrer le keyfile actuel ---
     & $OpenSSLPath enc -aes-256-cbc -md sha1 -d `
       -pass "file:$keyfileKey" `
       -in $keyfileEnc `
-      -out "$keyfile.tmp"
+      -out $keyfileTmp
 
-    if (-not (Test-Path "$keyfile.tmp")) { throw "Échec du déchiffrement du keyfile.enc" }
-    Write-AuditLog "Déchiffrement du keyfile.enc réussi"
+    if (-not (Test-Path $keyfileTmp)) { throw "Echec du dechiffrement du keyfile.enc" }
+    Write-AuditLog "Dechiffrement du keyfile.enc reussi"
 
-    # --- 3. Déterminer la version actuelle la plus haute ---
-    $lines = Get-Content "$keyfile.tmp" | Where-Object { $_.Trim() -ne "" }
-    $maxVersion = 1
+    # --- 3. Déterminer le key_id le plus élevé ---
+    # Format file_key_management : <key_id>;<hex_key> (PAS de version)
+    # @() force un tableau même si une seule ligne
+    $lines = @(Get-Content $keyfileTmp | Where-Object { $_.Trim() -ne "" })
+    $maxKeyId = 0
 
     foreach ($line in $lines) {
         $parts = $line -split ";"
-        if ($parts.Count -ge 3) {
-            $ver = [int]$parts[1]
-            if ($ver -gt $maxVersion) { $maxVersion = $ver }
+        if ($parts.Count -ge 2) {
+            $id = [int]$parts[0]
+            if ($id -gt $maxKeyId) { $maxKeyId = $id }
         }
     }
-    $newVersion = $maxVersion + 1
-    Write-AuditLog "Version actuelle: $maxVersion -> Nouvelle version: $newVersion"
+    if ($maxKeyId -eq 0) { throw "Format de cle invalide : attendu '<key_id>;<hex_key>'." }
+    $newKeyId = $maxKeyId + 1
+    Write-AuditLog "Key ID actuel le plus eleve: $maxKeyId -> Nouveau key_id: $newKeyId"
 
     # --- 4. Générer une nouvelle clé AES-256 ---
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
@@ -762,46 +787,58 @@ try {
     $rng.GetBytes($keyBytes)
     $newKeyHex = ($keyBytes | ForEach-Object { $_.ToString('x2') }) -join ''
 
-    # --- 5. Ajouter la nouvelle version au fichier ---
-    $newLine = "1;$newVersion;$newKeyHex"
-    Add-Content -Path "$keyfile.tmp" -Value $newLine -Encoding ASCII
-    Write-AuditLog "Nouvelle clé générée (version $newVersion, key_id=1)"
+    # --- 5. Ajouter la nouvelle clé avec le nouvel ID ---
+    $newLine = "$newKeyId;$newKeyHex"
+    $allLines = $lines + $newLine
+    $finalContent = ($allLines -join "`n") + "`n"
+    [System.IO.File]::WriteAllBytes($keyfileTmp, [System.Text.Encoding]::ASCII.GetBytes($finalContent))
+    Write-AuditLog "Nouvelle cle generee (key_id=$newKeyId)"
 
     # --- 6. Re-chiffrer le fichier de clés ---
     & $OpenSSLPath enc -aes-256-cbc -md sha1 `
       -pass "file:$keyfileKey" `
-      -in "$keyfile.tmp" `
+      -in $keyfileTmp `
       -out $keyfileEnc
 
     # --- 7. Vérifier le re-chiffrement ---
+    # $verifyOutput est un string[] (une ligne par clé) → joindre avant -notmatch
     $verifyOutput = & $OpenSSLPath enc -aes-256-cbc -md sha1 -d `
       -pass "file:$keyfileKey" `
       -in $keyfileEnc
+    $verifyString = ($verifyOutput -join "`n")
 
-    if ($verifyOutput -notmatch $newKeyHex) { throw "Vérification du chiffrement échouée" }
-    Write-AuditLog "Vérification du re-chiffrement: OK"
+    if ($verifyString -notmatch [regex]::Escape($newKeyHex)) { throw "Verification du chiffrement echouee" }
+    Write-AuditLog "Verification du re-chiffrement: OK"
 
     # --- 8. Nettoyer le fichier temporaire ---
-    Remove-Item "$keyfile.tmp" -Force
-    Write-AuditLog "Fichier temporaire supprimé"
+    Remove-Item $keyfileTmp -Force
+    Write-AuditLog "Fichier temporaire supprime"
 
-    # --- 9. Rotation effective dans MariaDB ---
-    # Avec innodb_encryption_rotate_key_age = 1, MariaDB détecte
-    # automatiquement la nouvelle version et re-chiffre les tables.
-    # Il suffit de forcer un rechargement du plugin :
+    # --- 9. Basculer MariaDB sur la nouvelle clé ---
     $mysql = "$BasePath\$MariaDBVersion\bin\mysql.exe"
-    & $mysql -u root -e "FLUSH TABLES;"
-    Write-AuditLog "FLUSH TABLES exécuté — MariaDB va re-chiffrer avec la version $newVersion"
 
-    # --- 10. Vérification du statut de rotation ---
-    $status = & $mysql -u root -e "SELECT COUNT(*) AS tables_en_rotation FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION WHERE ROTATING_OR_FLUSHING = 1;" 2>&1
-    Write-AuditLog "Statut rotation: $status"
+    # Changer la clé par défaut pour les nouvelles écritures
+    & $mysql -u root -e "SET GLOBAL innodb_default_encryption_key_id = $newKeyId;"
+    Write-AuditLog "innodb_default_encryption_key_id = $newKeyId"
 
-    Write-AuditLog "=== ROTATION TERMINÉE AVEC SUCCÈS (version $newVersion) ==="
+    # Re-chiffrer toutes les tables InnoDB avec le nouveau key_id
+    $tables = @(& $mysql -u root -N -e "SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE='InnoDB' AND TABLE_SCHEMA NOT IN ('mysql','information_schema','performance_schema');" 2>$null)
+    $tableCount = 0
+    foreach ($table in $tables) {
+        $t = $table.Trim()
+        if ($t -ne "") {
+            & $mysql -u root -e "ALTER TABLE $t ENCRYPTION_KEY_ID=$newKeyId;" 2>$null
+            $tableCount++
+        }
+    }
+    Write-AuditLog "Re-chiffrement lance sur $tableCount table(s) avec key_id=$newKeyId"
+
+    Write-AuditLog "=== ROTATION TERMINEE AVEC SUCCES (key_id=$newKeyId) ==="
+    Write-AuditLog "IMPORTANT: Ajouter 'innodb_default_encryption_key_id = $newKeyId' dans my.ini pour persister apres redemarrage"
 
 } catch {
     Write-AuditLog "ERREUR: $($_.Exception.Message)"
-    Write-AuditLog "=== ROTATION ÉCHOUÉE — Restauration manuelle nécessaire depuis $backupDir ==="
+    Write-AuditLog "=== ROTATION ECHOUEE — Restauration manuelle necessaire depuis $backupDir ==="
     throw
 }
 ```
@@ -936,6 +973,8 @@ Register-ScheduledTask `
 ```bash
 #!/bin/bash
 # Rotation trimestrielle de la clé TDE MariaDB (file_key_management)
+# Le plugin file_key_management ne gère PAS les versions de clés.
+# La rotation se fait par ajout d'un NOUVEL ID de clé (1, 2, 3...).
 # Conformité FDA 21 CFR Part 11 / NIST SP 800-57
 
 set -euo pipefail
@@ -951,30 +990,31 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$(whoami)] $1" | tee -a "$LOG_FILE
 
 mkdir -p "$BACKUP_DIR" "$(dirname "$LOG_FILE")"
 
-log "=== DÉBUT ROTATION DE CLÉ TDE ==="
+log "=== DEBUT ROTATION DE CLE TDE ==="
 
 # 1. Backup
 cp "$ENC_DIR/keyfile.enc" "$BACKUP_DIR/keyfile.enc.$TIMESTAMP"
 cp "$ENC_DIR/keyfile.key" "$BACKUP_DIR/keyfile.key.$TIMESTAMP"
-log "Backup effectué"
+log "Backup effectue"
 
 # 2. Déchiffrer
 openssl enc -aes-256-cbc -md sha1 -d \
   -pass "file:$ENC_DIR/keyfile.key" \
   -in "$ENC_DIR/keyfile.enc" \
   -out "$ENC_DIR/keyfile.tmp"
-log "Déchiffrement OK"
+log "Dechiffrement OK"
 
-# 3. Déterminer la version max
-MAX_VER=$(awk -F';' '{if(NF>=3 && $2>max) max=$2} END{print max+0}' "$ENC_DIR/keyfile.tmp")
-NEW_VER=$((MAX_VER + 1))
-[ "$MAX_VER" -eq 0 ] && NEW_VER=2  # si pas de version explicite, la prochaine est 2
-log "Version actuelle: $MAX_VER -> Nouvelle: $NEW_VER"
+# 3. Déterminer le key_id le plus élevé
+# Format : <key_id>;<hex_key> (PAS de version)
+MAX_ID=$(awk -F';' '{if($1+0 > max) max=$1+0} END{print max+0}' "$ENC_DIR/keyfile.tmp")
+[ "$MAX_ID" -eq 0 ] && { log "ERREUR: format de cle invalide (attendu '<key_id>;<hex_key>')."; exit 1; }
+NEW_ID=$((MAX_ID + 1))
+log "Key ID actuel le plus eleve: $MAX_ID -> Nouveau key_id: $NEW_ID"
 
 # 4. Générer et ajouter la nouvelle clé
 NEW_KEY=$(openssl rand -hex 32)
-echo "1;${NEW_VER};${NEW_KEY}" >> "$ENC_DIR/keyfile.tmp"
-log "Nouvelle clé générée (version $NEW_VER)"
+echo "${NEW_ID};${NEW_KEY}" >> "$ENC_DIR/keyfile.tmp"
+log "Nouvelle cle generee (key_id=$NEW_ID)"
 
 # 5. Re-chiffrer
 openssl enc -aes-256-cbc -md sha1 \
@@ -985,13 +1025,26 @@ openssl enc -aes-256-cbc -md sha1 \
 # 6. Vérifier
 openssl enc -aes-256-cbc -md sha1 -d \
   -pass "file:$ENC_DIR/keyfile.key" \
-  -in "$ENC_DIR/keyfile.enc" | grep -q "$NEW_KEY" && log "Vérification OK" || { log "ERREUR vérification"; exit 1; }
+  -in "$ENC_DIR/keyfile.enc" | grep -q "$NEW_KEY" && log "Verification OK" || { log "ERREUR verification"; exit 1; }
 
-# 7. Nettoyer & signaler MariaDB
+# 7. Nettoyer
 rm -f "$ENC_DIR/keyfile.tmp"
-mysql -u root -e "FLUSH TABLES;"
-log "FLUSH TABLES exécuté"
-log "=== ROTATION TERMINÉE (version $NEW_VER) ==="
+
+# 8. Basculer MariaDB sur la nouvelle clé
+mysql -u root -e "SET GLOBAL innodb_default_encryption_key_id = $NEW_ID;"
+log "innodb_default_encryption_key_id = $NEW_ID"
+
+# 9. Re-chiffrer les tables existantes avec le nouveau key_id
+TABLES=$(mysql -u root -N -e "SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE='InnoDB' AND TABLE_SCHEMA NOT IN ('mysql','information_schema','performance_schema');")
+COUNT=0
+while IFS= read -r TABLE; do
+  [ -z "$TABLE" ] && continue
+  mysql -u root -e "ALTER TABLE $TABLE ENCRYPTION_KEY_ID=$NEW_ID;" 2>/dev/null && COUNT=$((COUNT+1))
+done <<< "$TABLES"
+log "Re-chiffrement lance sur $COUNT table(s) avec key_id=$NEW_ID"
+
+log "=== ROTATION TERMINEE (key_id=$NEW_ID) ==="
+log "IMPORTANT: Ajouter 'innodb_default_encryption_key_id = $NEW_ID' dans my.cnf pour persister apres redemarrage"
 ```
 
 Planification via cron (trimestriel, le 1er du mois à 02:00) :
@@ -1007,16 +1060,21 @@ sudo crontab -e
 ### 5.8 Vérification post-rotation (SQL — identique Windows/Linux)
 
 ```sql
--- Vérifier la version de clé en cours d'utilisation
+-- Vérifier le key_id utilisé par chaque tablespace
 SELECT
     NAME,
     ENCRYPTION_SCHEME,
     KEY_ID,
-    KEY_ROTATION_PAGE_NUMBER,
-    KEY_ROTATION_MAX_PAGE_NUMBER,
     ROTATING_OR_FLUSHING
 FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
 ORDER BY NAME;
+
+-- Vérifier que toutes les tables utilisent le nouveau key_id
+-- (remplacer <nouveau_key_id> par l'ID attendu, ex: 2)
+SELECT NAME, KEY_ID
+FROM INFORMATION_SCHEMA.INNODB_TABLESPACES_ENCRYPTION
+WHERE KEY_ID != <nouveau_key_id>;
+-- Attendu : 0 ligne (toutes les tables sont sur le nouveau key_id)
 
 -- Vérifier qu'il n'y a plus de tables en cours de rotation
 SELECT COUNT(*) AS tables_en_attente
@@ -1036,24 +1094,24 @@ Le fichier de log `C:\Sites\outils\logs\tde-rotation.log` (ou `/Sites/outils/log
 |---|---|
 | **Date et heure** | `2026-03-10 02:00:05` |
 | **Identité de l'opérateur** | `SYSTEM` ou `administrateur` |
-| **Action** | `Nouvelle clé générée (version 5, key_id=1)` |
+| **Action** | `Nouvelle cle generee (key_id=3)` |
 | **Résultat** | `Vérification du re-chiffrement: OK` |
 | **Statut** | `ROTATION TERMINÉE AVEC SUCCÈS` |
 
-> **Rétention** : conserver les logs de rotation **minimum 3 ans** (pratique standard FDA). Les backups de clés doivent être conservés **aussi longtemps que des données chiffrées avec ces versions existent** (nécessaire pour les restaurations de sauvegardes historiques).
+> **Rétention** : conserver les logs de rotation **minimum 3 ans** (pratique standard FDA). Les backups de clés doivent être conservés **aussi longtemps que des données chiffrées avec ces key_id existent** (nécessaire pour les restaurations de sauvegardes historiques).
 
 ### 5.10 Calendrier récapitulatif de rotation (données médicales / FDA)
 
 ```
 Année N
-├── T1 (Janvier)   → Rotation clé données (version N+1)
+├── T1 (Janvier)   → Rotation clé données (nouveau key_id)
 │                    + Rotation clé enveloppe (annuelle)
-├── T2 (Avril)     → Rotation clé données (version N+2)
-├── T3 (Juillet)   → Rotation clé données (version N+3)
-├── T4 (Octobre)   → Rotation clé données (version N+4)
+├── T2 (Avril)     → Rotation clé données (nouveau key_id)
+├── T3 (Juillet)   → Rotation clé données (nouveau key_id)
+├── T4 (Octobre)   → Rotation clé données (nouveau key_id)
 │
 Année N+1
-├── T1 (Janvier)   → Rotation clé données (version N+5)
+├── T1 (Janvier)   → Rotation clé données (nouveau key_id)
 │                    + Rotation clé enveloppe (annuelle)
 └── ...
 ```
