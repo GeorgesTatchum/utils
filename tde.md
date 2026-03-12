@@ -932,10 +932,11 @@ try {
 ### 5.6 Planification via le Planificateur de tâches Windows
 
 ```powershell
-# --- Rotation trimestrielle de la clé de données (key_id version) ---
+# --- Rotation trimestrielle de la clé de données (key_id) ---
+# IMPORTANT : adapter -ExportPath au chemin UNC du NAS/serveur de sauvegarde (voir Section 6)
 $action = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"C:\Sites\outils\scripts\Rotate-TDEDataKey.ps1`""
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"C:\Sites\outils\scripts\Rotate-TDEDataKey.ps1`" -ExportPath `"\\NAS\backups\TDE`""
 
 # Tous les 90 jours, à 02:00 (hors heures de production)
 $trigger = New-ScheduledTaskTrigger -Daily -DaysInterval 90 -At "02:00"
@@ -944,18 +945,18 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
 
 Register-ScheduledTask `
-    -TaskName "MariaDB TDE - Rotation clé données (90j)" `
+    -TaskName "MariaDB TDE - Rotation cle donnees (90j)" `
     -Action $action `
     -Trigger $trigger `
     -Settings $settings `
     -Principal $principal `
-    -Description "Rotation trimestrielle clé TDE MariaDB - Conformité FDA 21 CFR Part 11 / NIST SP 800-57"
+    -Description "Rotation trimestrielle cle TDE MariaDB + export externe - FDA 21 CFR Part 11 / NIST SP 800-57"
 
 
 # --- Rotation annuelle de la clé d'enveloppe ---
 $actionEnv = New-ScheduledTaskAction `
     -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"C:\Sites\outils\scripts\Rotate-TDEEnvelopeKey.ps1`""
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"C:\Sites\outils\scripts\Rotate-TDEEnvelopeKey.ps1`" -ExportPath `"\\NAS\backups\TDE`""
 
 $triggerEnv = New-ScheduledTaskTrigger -Daily -DaysInterval 365 -At "03:00"
 
@@ -1120,7 +1121,297 @@ Année N+1
 
 ---
 
-## Résumé architecture TDE MariaDB — Serveur dédié par client (Windows / Linux)
+## 6. Externalisation des artefacts de chiffrement — Plan de continuite FDA
+
+### 6.1 Probleme : point de defaillance unique (SPOF)
+
+Avec l'architecture actuelle, **tous les artefacts critiques sont stockes sur le meme serveur** :
+
+| Artefact | Chemin local | Risque si serveur inaccessible |
+|---|---|---|
+| Cle courante (`keyfile.enc`) | `encryption/` | **Impossible de dechiffrer les donnees** |
+| Cle d'enveloppe (`keyfile.key`) | `encryption/` | **Impossible de dechiffrer `keyfile.enc`** |
+| Historique des cles (`backups/`) | `encryption/backups/` | **Impossible de restaurer des sauvegardes historiques** |
+| Logs d'audit (`logs/`) | `encryption/logs/` | **Impossible de prouver la conformite FDA** |
+
+> **Scenario critique** : le serveur subit une panne materielle (disque, carte mere, incendie). Meme si les sauvegardes MariaDB (mariabackup) sont externalisees, sans les cles de chiffrement correspondantes, les donnees sont **definitivement perdues**. Et sans les logs d'audit, la conformite FDA 21 CFR Part 11 ne peut plus etre demontree.
+
+### 6.2 Ce qui doit etre externalise
+
+| Element | Contenu | Frequence d'export | Retention |
+|---|---|---|---|
+| `keyfile.enc` | Fichier de cles chiffre (contient tous les key_id) | **Apres chaque rotation trimestrielle** | Aussi longtemps que des backups chiffres avec ces cles existent |
+| `keyfile.key` | Cle d'enveloppe | **Apres chaque rotation annuelle** | Idem |
+| `backups/` | Historique complet des cles et de my.ini | **Apres chaque rotation** | Minimum 3 ans (FDA) |
+| `logs/` | Logs d'audit par cycle + log principal | **Apres chaque rotation** | Minimum 3 ans (FDA) |
+| Scripts de rotation | `rotate_keyfile_enc.ps1`, `rotate_keyfile_key.ps1` | **Apres chaque modification** | Versioning recommande |
+
+### 6.3 Destinations d'export recommandees
+
+| Destination | Securite | Disponibilite | Recommandation |
+|---|---|---|---|
+| **Partage reseau (UNC)** `\\NAS\backups\TDE\` | Moyenne-Haute (ACL + SMB signe) | Haute | **Prefere** — simple, automatisable |
+| **Stockage cloud** (S3, Azure Blob, GCS) | Haute (chiffrement cote serveur) | Tres haute | Recommande si infrastructure cloud |
+| **Serveur de sauvegarde dedie** | Haute | Haute | Alternative au NAS |
+| **Support amovible chiffre** (USB + BitLocker To Go) | Haute | Faible (manuel) | **Complement hors-site** pour DR |
+| **Coffre-fort physique** (impression cle de recuperation) | Tres haute | Faible | Dernier recours, pour `keyfile.key` uniquement |
+
+> **Bonne pratique** : combiner **au moins 2 destinations** — une automatisee (UNC/cloud) + une hors-site (USB/coffre).
+
+### 6.4 Strategie d'export automatise
+
+L'export est integre directement dans les scripts de rotation (`rotate_keyfile_enc.ps1` et `rotate_keyfile_key.ps1`) sous forme d'une **Phase 4** qui s'execute apres la rotation reussie.
+
+**Principe** :
+
+```
+rotation reussie
+   |
+   v
+robocopy encryption/ --> \\NAS\backups\TDE\<hostname>\encryption\
+   |
+   v
+log "Export externe OK" (dans les deux logs : local + cycle)
+```
+
+**Parametre** : les scripts acceptent un parametre `-ExportPath` (chemin UNC ou local). Si non fourni, l'export est ignore avec un avertissement.
+
+**Structure sur la destination externe** :
+
+```
+\\NAS\backups\TDE\
+  SERVEUR-CLIENT-01\
+    encryption\
+      keyfile.enc           <-- cle courante
+      keyfile.key           <-- enveloppe courante
+      backups\
+        keyfile.enc.20260101-020005
+        keyfile.key.20260101-020005
+        my.ini.20260101-020005
+        ...
+      logs\
+        tde-rotation.log
+        tde-rotation-20260101-020005.log
+        tde-envelope-rotation.log
+        tde-envelope-rotation-20260401-030010.log
+        ...
+```
+
+### 6.5 Script d'export — Windows (PowerShell)
+
+Integre dans les scripts de rotation (Phase 4). Peut aussi etre execute manuellement :
+
+```powershell
+<#
+.SYNOPSIS
+    Export des artefacts de chiffrement TDE vers une destination externe.
+    A executer apres chaque rotation ou manuellement pour un export ad-hoc.
+#>
+
+param(
+    [string]$MariaDBVersion = "MariaDB115",
+    [string]$BasePath       = "C:\Sites\outils",
+    [string]$ExportPath     = ""   # Ex: \\NAS\backups\TDE
+)
+
+$encDir = "$BasePath\$MariaDBVersion\encryption"
+$hostname = $env:COMPUTERNAME
+$destination = "$ExportPath\$hostname\encryption"
+$logDir = "$encDir\logs"
+$LogPath = "$logDir\tde-rotation.log"
+
+function Write-AuditLog {
+    param([string]$Message)
+    $entry = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] [$(whoami)] $Message"
+    if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Force -Path $logDir | Out-Null }
+    Add-Content -Path $LogPath -Value $entry
+    Write-Host $entry
+}
+
+if ([string]::IsNullOrWhiteSpace($ExportPath)) {
+    Write-AuditLog "AVERTISSEMENT: ExportPath non defini - export externe ignore"
+    return
+}
+
+try {
+    Write-AuditLog "=== EXPORT EXTERNE DES ARTEFACTS TDE ==="
+    Write-AuditLog "Source: $encDir"
+    Write-AuditLog "Destination: $destination"
+
+    # robocopy avec /MIR (miroir), /SEC (copie ACL), /R:3 (3 retries), /W:5 (5s entre retries)
+    $robocopyArgs = @($encDir, $destination, '/MIR', '/R:3', '/W:5', '/NP', '/NDL', '/NFL')
+    $robocopyResult = & robocopy @robocopyArgs
+    $robocopyExit = $LASTEXITCODE
+
+    # robocopy : 0-3 = succes, >= 8 = erreur
+    if ($robocopyExit -ge 8) {
+        throw "robocopy a echoue avec le code $robocopyExit"
+    }
+
+    Write-AuditLog "Export externe termine (robocopy exit code: $robocopyExit)"
+    Write-AuditLog "=== EXPORT EXTERNE OK ==="
+
+} catch {
+    Write-AuditLog "ERREUR EXPORT: $($_.Exception.Message)"
+    Write-AuditLog "La rotation a reussi mais l'export externe a echoue."
+    Write-AuditLog "Effectuer un export manuel : robocopy $encDir $destination /MIR"
+    # On ne lance PAS throw ici : la rotation a reussi, l'export est un bonus
+}
+```
+
+### 6.6 Script d'export — Linux (bash)
+
+```bash
+#!/bin/bash
+# Export des artefacts de chiffrement TDE vers une destination externe
+# A executer apres chaque rotation ou manuellement
+
+set -euo pipefail
+
+VERSION="MariaDB115"
+BASE="/Sites/outils"
+ENC_DIR="$BASE/$VERSION/encryption"
+EXPORT_PATH="${1:-}"   # 1er argument = destination (ex: /mnt/nas/backups/TDE)
+HOSTNAME=$(hostname)
+LOG_FILE="$ENC_DIR/logs/tde-rotation.log"
+
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] [$(whoami)] $1" | tee -a "$LOG_FILE"; }
+
+if [ -z "$EXPORT_PATH" ]; then
+    log "AVERTISSEMENT: Destination non fournie - export ignore"
+    log "Usage: $0 /mnt/nas/backups/TDE"
+    exit 0
+fi
+
+DESTINATION="$EXPORT_PATH/$HOSTNAME/encryption"
+mkdir -p "$DESTINATION"
+
+log "=== EXPORT EXTERNE DES ARTEFACTS TDE ==="
+log "Source: $ENC_DIR"
+log "Destination: $DESTINATION"
+
+# rsync avec --archive (preserve tout), --delete (miroir)
+rsync -a --delete "$ENC_DIR/" "$DESTINATION/"
+
+log "Export externe termine"
+log "=== EXPORT EXTERNE OK ==="
+```
+
+### 6.7 Securisation de l'export
+
+| Mesure | Implementation |
+|---|---|
+| **Chiffrement du transport** | SMB 3.0+ avec chiffrement active (GPO), ou SFTP/SCP pour Linux |
+| **Chiffrement au repos sur la destination** | BitLocker sur le NAS/serveur de backup, ou chiffrement S3 SSE-S3/SSE-KMS |
+| **ACL sur le partage reseau** | Restreindre au compte SYSTEM du serveur source + Administrateurs du domaine uniquement |
+| **Integrite** | `keyfile.enc` est deja chiffre par `keyfile.key` ; les logs sont en clair mais signes par horodatage + identite |
+| **Separation** | Ne **jamais** stocker les sauvegardes MariaDB (mariabackup) et les cles de chiffrement **au meme endroit** |
+
+> **Regle d'or** : celui qui possede les sauvegardes de donnees ne devrait **pas** avoir acces aux cles, et vice-versa. En cas de compromission d'un seul emplacement, les donnees restent protegees.
+
+### 6.8 Verification et alerting
+
+Pour garantir que l'export fonctionne, ajouter une verification periodique :
+
+```powershell
+# Script de verification (a planifier quotidiennement ou hebdomadairement)
+param(
+    [string]$ExportPath = "",   # \\NAS\backups\TDE
+    [int]$MaxAgeDays   = 95           # Alerte si dernier export > 95 jours (marge sur 90j)
+)
+
+$hostname = $env:COMPUTERNAME
+$extEnc = "$ExportPath\$hostname\encryption\keyfile.enc"
+
+if (-not (Test-Path $extEnc)) {
+    Write-Warning "ALERTE: Aucun export trouve pour $hostname sur $ExportPath"
+    # Envoyer email / alerte monitoring
+    return
+}
+
+$lastModified = (Get-Item $extEnc).LastWriteTime
+$ageDays = (New-TimeSpan -Start $lastModified -End (Get-Date)).Days
+
+if ($ageDays -gt $MaxAgeDays) {
+    Write-Warning "ALERTE: Dernier export il y a $ageDays jours (seuil: $MaxAgeDays)"
+    # Envoyer email / alerte monitoring
+} else {
+    Write-Host "OK: Export $hostname date de $ageDays jour(s) ($lastModified)"
+}
+```
+
+### 6.9 Procedure de restauration depuis l'export externe
+
+En cas de perte du serveur, voici la procedure pour recuperer les artefacts de chiffrement :
+
+**Windows** :
+```powershell
+# 1. Sur le nouveau serveur, recreer le dossier encryption
+$encDir = "C:\Sites\outils\MariaDB115\encryption"
+New-Item -ItemType Directory -Force -Path $encDir | Out-Null
+
+# 2. Copier depuis la destination externe
+$source = "\\NAS\backups\TDE\$($env:COMPUTERNAME)\encryption"
+robocopy $source $encDir /MIR /SEC /R:3 /W:5
+
+# 3. Verifier que les fichiers sont presents
+Get-ChildItem $encDir -Recurse | Format-Table Name, Length, LastWriteTime
+
+# 4. Tester le dechiffrement
+& openssl enc -aes-256-cbc -md sha1 -d `
+  -pass "file:$encDir\keyfile.key" `
+  -in "$encDir\keyfile.enc"
+# Doit afficher les lignes <key_id>;<hex_key>
+
+# 5. Restaurer my.ini depuis les backups si necessaire
+$latestMyIni = Get-ChildItem "$encDir\backups\my.ini.*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($latestMyIni) {
+    Copy-Item $latestMyIni.FullName "C:\Sites\outils\MariaDB115\data\my.ini" -Force
+}
+
+# 6. Demarrer MariaDB
+Start-Service MySQL
+```
+
+**Linux** :
+```bash
+# 1. Recreer le dossier
+mkdir -p /Sites/outils/MariaDB115/encryption
+
+# 2. Copier depuis le NAS
+rsync -a /mnt/nas/backups/TDE/$(hostname)/encryption/ /Sites/outils/MariaDB115/encryption/
+
+# 3. Verifier
+openssl enc -aes-256-cbc -md sha1 -d \
+  -pass file:/Sites/outils/MariaDB115/encryption/keyfile.key \
+  -in /Sites/outils/MariaDB115/encryption/keyfile.enc
+
+# 4. Permissions
+chown -R mysql:mysql /Sites/outils/MariaDB115/encryption
+chmod -R 600 /Sites/outils/MariaDB115/encryption/*
+
+# 5. Demarrer
+sudo systemctl start mariadb
+```
+
+### 6.10 Checklist externalisation
+
+```
+[ ] 1. Destination externe configuree (UNC / NAS / cloud)
+[ ] 2. ACL sur le partage : seul SYSTEM du serveur + admins
+[ ] 3. Parametre -ExportPath ajoute aux taches planifiees
+[ ] 4. Premier export manuel execute et verifie
+[ ] 5. Test de restauration depuis l'export valide
+[ ] 6. Verification periodique planifiee (script 6.8)
+[ ] 7. Separation cles / donnees (emplacements differents)
+[ ] 8. Procedure de restauration documentee et testee
+[ ] 9. Support amovible hors-site (complement USB/coffre)
+[ ] 10. Retention logs >= 3 ans configuree sur la destination
+```
+
+---
+
+## Resume architecture TDE MariaDB — Serveur dédié par client (Windows / Linux)
 
 ```
 ┌───────────────────────────────────────────────────────────┐

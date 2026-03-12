@@ -22,7 +22,8 @@
 param(
     [string]$MariaDBVersion = "MariaDB115",
     [string]$BasePath       = "C:\Sites\outils",
-    [string]$ServiceName    = "MySQL"
+    [string]$ServiceName    = "MySQL",
+    [string]$ExportPath     = ""          # Chemin externe (UNC/local) ex: \\NAS\backups\TDE
 )
 
 $ErrorActionPreference = "Stop"
@@ -219,6 +220,28 @@ try {
 
     Write-AuditLog "=== ROTATION TERMINEE AVEC SUCCES (key_id=$newKeyId) ==="
     Write-AuditLog "Log de ce cycle : $CycleLog"
+
+    # PHASE 4 : Export externe des artefacts (cles + backups + logs)
+
+    if (-not [string]::IsNullOrWhiteSpace($ExportPath)) {
+        $exportDest = "$ExportPath\$($env:COMPUTERNAME)\encryption"
+        Write-AuditLog "--- EXPORT EXTERNE ---"
+        Write-AuditLog "Destination: $exportDest"
+        try {
+            $robocopyArgs = @($encDir, $exportDest, '/MIR', '/R:3', '/W:5', '/NP', '/NDL', '/NFL')
+            & robocopy @robocopyArgs | Out-Null
+            $rc = $LASTEXITCODE
+            if ($rc -ge 8) { throw "robocopy code $rc" }
+            Write-AuditLog "Export externe termine (robocopy exit: $rc)"
+        } catch {
+            Write-AuditLog "AVERTISSEMENT EXPORT: $($_.Exception.Message)"
+            Write-AuditLog "La rotation a reussi mais l'export externe a echoue."
+            Write-AuditLog "Export manuel: robocopy $encDir $exportDest /MIR"
+        }
+    } else {
+        Write-AuditLog "AVERTISSEMENT: -ExportPath non defini - export externe ignore"
+        Write-AuditLog "Recommande: relancer avec -ExportPath \\NAS\backups\TDE"
+    }
 
 } catch {
     $errorMessage = $_.Exception.Message
