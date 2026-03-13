@@ -344,7 +344,7 @@ aws organizations create-organizational-unit \
 # Créer les sous-OU de Workloads
 WORKLOADS_OU_ID=$(aws organizations list-organizational-units-for-parent \
   --parent-id "$ROOT_ID" --profile org-admin \
-  --query "OrganizationalUnits[?Name=='Workloads'].Id" --output text)
+  --query "OrganizationalUnits[?contains(Name, 'Workloads')].Id" --output text)
 
 for ENV in Production Staging Development; do
   aws organizations create-organizational-unit \
@@ -624,7 +624,17 @@ aws organizations list-policies-for-target \
 
 **Via la console web** : AWS Organizations → **Policies** → **Service control policies** → **Create policy** → coller le JSON → **Create** → sélectionner la policy → **Targets** → **Attach** → choisir l'OU.
 
-### 6.2 Activer AWS Security Hub
+### 6.2 Activer AWS Security Hub et AWS Config
+
+> ⚠️ **IMPORTANT — Coûts et dépendances**
+> 
+> - Les standards Security Hub (CIS Benchmark, AWS Foundational Best Practices) **dépendent obligatoirement d'AWS Config**
+> - **Sans Config**, Security Hub affiche l'erreur `NO_AVAILABLE_CONFIGURATION_RECORDER` et les standards restent `INCOMPLETE`
+> - **Coûts AWS Config** : ~30-40 €/mois par compte enfant (0,30 € par config item + 0,50 € par règle)
+> - **Facturation** : ces coûts sont **facturés au compte enfant lui-même**, pas au compte Management parent
+> - **Justification conformité** : obligatoire pour FDA 21 CFR Part 11, IEC 62304, ISO 13485, MDCG 2019-16
+
+#### Étape 1 — Activer AWS Config (obligatoire)
 
 ```bash
 # Se connecter au nouveau compte via le rôle cross-account
@@ -633,20 +643,78 @@ aws sts assume-role \
   --role-session-name "SecuritySetup" \
   --profile org-admin
 
-# Activer Security Hub avec les standards de conformité
-aws securityhub enable-security-hub \
-  --enable-default-standards \
+# Créer le rôle IAM pour AWS Config (s'il n'existe pas)
+# Normalement créé automatiquement par AWS, mais on peut le vérifier
+aws iam get-role \
+  --role-name aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig \
+  --profile new-account 2>/dev/null || \
+aws iam create-service-linked-role \
+  --aws-service-name config.amazonaws.com \
   --profile new-account
 
-# Activer les standards spécifiques
+# Activer le Configuration Recorder (enregistre les changements de ressources)
+aws configservice put-configuration-recorder \
+  --configuration-recorder name=default,roleARN=arn:aws:iam::${NEW_ACCOUNT_ID}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig \
+  --recording-group allSupported=true,includeGlobalResourceTypes=true \
+  --profile new-account
+
+# Démarrer le Configuration Recorder
+aws configservice start-configuration-recorder \
+  --configuration-recorder-names default \
+  --profile new-account
+
+# Vérifier le statut (attendre ~2-5 min)
+aws configservice describe-configuration-recorder-status \
+  --configuration-recorder-names default \
+  --profile new-account \
+  --query 'ConfigurationRecordersStatus[0].{Name:name,Recording:recording}' \
+  --output table
+```
+
+#### Étape 2 — Activer AWS Security Hub
+
+```bash
+# Activer Security Hub
+aws securityhub enable-security-hub \
+  --profile new-account
+
+# Attendre ~2 min que Security Hub initialise
+sleep 120
+
+# Activer les standards de conformité
+# NB : Maintenant que Config est actif, les standards vont fonctionner
 aws securityhub batch-enable-standards \
   --standards-subscription-requests \
     '[{"StandardsArn":"arn:aws:securityhub:::ruleset/cis-aws-foundations-benchmark/v/1.4.0"},
       {"StandardsArn":"arn:aws:securityhub:eu-west-3::standards/aws-foundational-security-best-practices/v/1.0.0"}]' \
   --profile new-account
+
+# Vérifier le statut des standards (devrait passer à READY après ~10 min)
+aws securityhub get-enabled-standards \
+  --profile new-account \
+  --query 'StandardsSubscriptions[].{StandardsArn:StandardsArn,Status:StandardsStatus}' \
+  --output table
 ```
 
-**Via la console web** : Se connecter au compte → **Security Hub** → **Go to Security Hub** → Activer → Cocher les standards CIS et AWS Foundational.
+#### Étape 3 — Optionnel : Réduire les coûts sans perdre en conformité
+
+Si les coûts Config sont un problème et que tu n'es encore qu'en **développement** :
+
+```bash
+# Option A : N'activer Security Hub que sur le compte Production
+# (garder Config/Security Hub seulement en Prod, pas en dev/staging)
+
+# Option B : Réduire le nombre de Config Rules 
+# (garder seulement les règles critiques, pas les 50 standard)
+aws configservice put-config-rule \
+  --config-rule '{"ConfigRuleName":"iam-user-mfa-enabled",...}'
+```
+
+**Via la console web** : 
+1. Se connecter au compte → **Config** → **Get started** → **Record all resources** → cocher les options
+2. Attendre 2-5 minutes
+3. Aller dans **Security Hub** → **Standards** → cocher **CIS Benchmark** et **AWS Foundational**
+4. Les standards passeront de `INCOMPLETE` à `READY` après ~10 min
 
 ---
 
@@ -1154,33 +1222,38 @@ aws s3api put-object-lock-configuration \
   --profile log-archive
 ```
 
-### 9.3 AWS Config Rules
+### 9.3 AWS Config Rules — Vérifie la conformité en continu
+
+> **Note** : AWS Config a été activé en §6.2. Cette section ajoute les **règles de conformité** (Config Rules) qui vérifient les ressources.
+> 
+> **Coûts** : Chaque Config Rule coûte ~0,50 €/mois. Les 15 règles ci-dessous = ~7,50 €/mois supplémentaires (inclus dans les 30-40 € estimés).
+
+#### Règles de conformité obligatoires en environnement médical
 
 ```bash
-# Activer AWS Config sur le nouveau compte
-aws configservice put-configuration-recorder \
-  --configuration-recorder name=default,roleARN=arn:aws:iam::${NEW_ACCOUNT_ID}:role/aws-service-role/config.amazonaws.com/AWSServiceRoleForConfig \
-  --recording-group allSupported=true,includeGlobalResourceTypes=true \
+# Les CONFIG_RULES doivent être activées sur le compte (après que Config soit actif)
+# Vérifier que le Configuration Recorder tourne avant de les ajouter
+aws configservice describe-configuration-recorder-status \
+  --configuration-recorder-names default \
   --profile new-account
 
-# Règles de conformité obligatoires
+# Ajouter les règles de conformité critiques pour la médecine
 CONFIG_RULES=(
-  "iam-user-mfa-enabled"
-  "root-account-mfa-enabled"
-  "iam-root-access-key-check"
-  "iam-user-no-policies-check"
-  "iam-password-policy"
-  "cloud-trail-enabled"
-  "cloud-trail-log-file-validation-enabled"
-  "cloud-trail-encryption-enabled"
-  "s3-bucket-server-side-encryption-enabled"
-  "s3-bucket-public-read-prohibited"
-  "s3-bucket-public-write-prohibited"
-  "encrypted-volumes"
-  "rds-storage-encrypted"
-  "restricted-ssh"
-  "access-keys-rotated"
-  "mfa-enabled-for-iam-console-access"
+  "iam-user-mfa-enabled"                          # FDA §11.300 — MFA pour API access
+  "root-account-mfa-enabled"                      # FDA §11.300 — Root account protection
+  "iam-root-access-key-check"                     # FDA §11.300 — Pas de clé d'accès root
+  "iam-user-no-policies-check"                    # ISO 27001 A.5.15 — Pas d'inline policies
+  "iam-password-policy"                           # ISO 27001 A.5.17 — Politique mot de passe
+  "cloud-trail-enabled"                           # FDA §11.10(e) — CloudTrail actif
+  "cloud-trail-log-file-validation-enabled"      # FDA §11.10(e) — Validation intégrité
+  "cloud-trail-encryption-enabled"                # HDS — Chiffrement des logs
+  "s3-bucket-server-side-encryption-enabled"     # HDS — Chiffrement données de santé
+  "s3-bucket-public-read-prohibited"              # MDCG 2019-16 — Pas d'accès public
+  "s3-bucket-public-write-prohibited"             # MDCG 2019-16 — Pas de write public
+  "encrypted-volumes"                             # ISO 27001 A.8.3 — Chiffrement EBS
+  "rds-storage-encrypted"                         # HDS — Chiffrement données patient
+  "restricted-ssh"                                # ISO 27001 A.8.3 — Accès SSH limité
+  "access-keys-rotated"                           # ISO 27001 A.5.17 — Rotation des clés
 )
 
 for RULE in "${CONFIG_RULES[@]}"; do
@@ -1193,11 +1266,17 @@ for RULE in "${CONFIG_RULES[@]}"; do
       }
     }" \
     --profile new-account
-  echo "Config Rule enabled: $RULE"
+  echo "✓ Config Rule activée: $RULE"
 done
+
+# Vérifier que les règles sont bien activées
+aws configservice describe-config-rules \
+  --profile new-account \
+  --query 'ConfigRules[].ConfigRuleName' \
+  --output table
 ```
 
-**Via la console web** : AWS Config → **Get started** / **Rules** → **Add rule** → rechercher et activer chaque règle listée.
+**Via la console web** : AWS Config → **Rules** → **Add rule** → rechercher chaque règle par son nom → **Create** (répéter pour chacune).
 
 ### 9.4 Alarmes CloudWatch pour événements critiques
 
