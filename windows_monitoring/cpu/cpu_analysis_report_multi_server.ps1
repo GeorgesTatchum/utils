@@ -377,25 +377,25 @@ $htmlContent = @"
         <h2>Sc&eacute;narios de Consolidation</h2>
         
         <div class="scenario-card optimiste">
-            <h3>📊 Sc&eacute;nario 1 - OPTIMISTE (Moyenne + 10%)</h3>
+            <h3>Sc&eacute;nario 1 - OPTIMISTE (Moyenne + 10%)</h3>
             <p><strong>Hypoth&egrave;se:</strong> Les pics de chaque serveur ne sont pas simultan&eacute;s</p>
             <p><strong>vCPU n&eacute;cessaires:</strong> <span style="font-size: 24px; font-weight: bold;">$consolidatedAvgVCpu</span> / $totalVCpuAllocated</p>
             <p><strong>&Eacute;conomies:</strong> $($totalVCpuAllocated - $consolidatedAvgVCpu) vCPU</p>
-            <p style="font-size: 12px; color: #666;">⚠️ <strong>Risque:</strong> Pics simultan&eacute;s peuvent cr&eacute;er des contentions</p>
+            <p style="font-size: 12px; color: #666;"> <strong>Risque:</strong> Pics simultan&eacute;s peuvent cr&eacute;er des contentions</p>
         </div>
         
         <div class="scenario-card realiste">
-            <h3>✅ Sc&eacute;nario 2 - R&Eacute;ALISTE (P95 + 20%) — RECOMMAND&Eacute;</h3>
+            <h3> Sc&eacute;nario 2 - R&Eacute;ALISTE (P95 + 20%) - RECOMMAND&Eacute;</h3>
             <p><strong>Hypoth&egrave;se:</strong> P95 de chaque serveur additionn&eacute;s avec s&eacute;curit&eacute; (20% marge)</p>
             <p><strong>vCPU n&eacute;cessaires:</strong> <span style="font-size: 24px; font-weight: bold; color: #4caf50;">$consolidatedP95VCpu</span> / $totalVCpuAllocated</p>
             <div class="savings-highlight">
-                <strong>🎯 &Eacute;conomies:</strong> $savingsVsCurrent vCPU ($savingsPct%)<br>
-                <strong>📈 vs Recommand&eacute; actuel:</strong> $([Math]::Max($consolidatedRecommendedVCpu - $consolidatedP95VCpu, 0)) vCPU suppl&eacute;mentaires possibles
+                <strong> &Eacute;conomies:</strong> $savingsVsCurrent vCPU ($savingsPct%)<br>
+                <strong> vs Recommand&eacute; actuel:</strong> $([Math]::Max($consolidatedRecommendedVCpu - $consolidatedP95VCpu, 0)) vCPU suppl&eacute;mentaires possibles
             </div>
         </div>
         
         <div class="scenario-card conservative">
-            <h3>🔒 Sc&eacute;nario 3 - CONSERVATIVE (Somme recommandations)</h3>
+            <h3> Sc&eacute;nario 3 - CONSERVATIVE (Somme recommandations)</h3>
             <p><strong>Hypoth&egrave;se:</strong> Chaque serveur garde sa marge recommand&eacute;e individuellement</p>
             <p><strong>vCPU n&eacute;cessaires:</strong> <span style="font-size: 24px; font-weight: bold;">$consolidatedRecommendedVCpu</span> / $totalVCpuAllocated</p>
             <p><strong>&Eacute;conomies:</strong> $($totalVCpuAllocated - $consolidatedRecommendedVCpu) vCPU</p>
@@ -403,7 +403,7 @@ $htmlContent = @"
         </div>
         
         <div class="recommendation">
-            <h3>🎯 Recommandation Finale</h3>
+            <h3> Recommandation Finale</h3>
             <p><strong>Approche sugg&eacute;r&eacute;e : Sc&eacute;nario 2 (R&eacute;aliste)</strong></p>
             <p>Allouer <strong>$consolidatedP95VCpu vCPU</strong> au serveur consolid&eacute;</p>
             <p>Cela permet une &eacute;conomie de <strong style="font-size: 18px;">$savingsVsCurrent vCPU ($savingsPct%)</strong> par rapport &agrave; la situation actuelle<br>

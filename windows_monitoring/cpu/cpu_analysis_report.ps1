@@ -299,7 +299,7 @@ $htmlContent = @"
         </div>
         
         <div class="recommendation">
-            <h3>📊 Recommandation</h3>
+            <h3> Recommandation</h3>
             <p><strong>Bas&eacute;e sur P95 + 20% marge de s&eacute;curit&eacute;</strong></p>
             <p>P95 observ&eacute; : <strong>$([Math]::Round($overallP95, 2))%</strong></p>
             <p>vCPU actuels : <strong>$vCpuAllocated</strong> | vCPU recommand&eacute;s : <strong>$recommendedCpu</strong></p>

@@ -30,7 +30,13 @@ Write-Host "Collecte : $MaxSamples echantillons toutes les ${SampleIntervalSec}s
 $ScriptBlock = {
     param($SampleIntervalSec, $MaxSamples)
     
-    $counter = '\processeur(_total)\% temps processeur'
+    $culture = [System.Globalization.CultureInfo]::CurrentCulture.Name
+
+    if ($culture -like "fr-*") {
+        $counter = '\processeur(_total)\% temps processeur'
+    } else {
+        $counter = '\processor(_total)\% processor time'
+    }
     $samples = Get-Counter -Counter $counter -SampleInterval $SampleIntervalSec -MaxSamples $MaxSamples
     $values  = $samples.CounterSamples | Select-Object -ExpandProperty CookedValue
 

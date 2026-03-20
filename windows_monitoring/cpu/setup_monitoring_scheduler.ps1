@@ -68,15 +68,15 @@ $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
                                   -Argument $Arguments `
                                   -WorkingDirectory $PSScriptRoot
 
-# Creer un trigger hebdomadaire pour lun-ven a 9h00
-Write-Host "Creation du trigger hebdomadaire (lun-ven, 9h00)..." -ForegroundColor Cyan
+# Creer un trigger hebdomadaire pour lun-ven a 8h00
+Write-Host "Creation du trigger hebdomadaire (lun-ven, 8h00)..." -ForegroundColor Cyan
 Write-Host "Duree : $DurationSeconds secondes ($(($DurationSeconds/3600).ToString('F1')) heures)" -ForegroundColor Yellow
 Write-Host "Intervalle echantillonnage : $SampleIntervalSec secondes" -ForegroundColor Yellow
 Write-Host ""
 
 $Trigger = New-ScheduledTaskTrigger -Weekly `
                                    -DaysOfWeek @("Monday", "Tuesday", "Wednesday", "Thursday", "Friday") `
-                                   -At "09:00:00"
+                                   -At "08:00:00"
 
 $Triggers = @($Trigger)
 
