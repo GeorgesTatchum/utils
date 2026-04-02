@@ -187,3 +187,6 @@ linux_data
 *.csv
 
 test
+
+windows_monitoring/cpu/reports
+windows_monitoring/cpu/reports_global
