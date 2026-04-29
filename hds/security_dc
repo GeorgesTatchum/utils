@@ -1,0 +1,237 @@
+Introduction 
+
+Confidentiality and property 
+
+All information in this document must be considered confidential and is provided to the customer as part of the service ordered. 
+
+AVA6, AVA6 GROUP and their logos are registered trademarks. 
+
+Other registered trademarks and brand names may be used in this document by reference to the companies owning such trademarks and/or their product names. AVA6 GROUP acknowledges that it has no title to the trademarks and brand names other than its own. 
+
+The information contained in this document has been reviewed and updated. However, AVA6 GROUP cannot be held responsible for any omissions and errors that may have appeared in this document. 
+
+Even informed of the possibility of such damage, AVA6 GROUP declines all liability for any direct or indirect, consequential, or non-consequential damage resulting from a failure or omission in this document. 
+
+AVA6 GROUP reserves the right to improve and modify the information contained in this document, as well as the products and services described therein without prior notice. 
+
+AVA6 GROUP agrees that any decision to supply the product or service, subject hereof, is subject to the reciprocal execution of a written agreement that has become final. 
+
+Any information provided under this document will be considered confidential. 
+
+Scope of the document 
+
+The purpose of this document is to provide a report on the OneOrtho client's server hosting environment, with an emphasis on best practices. 
+
+This document does not contain : 
+
+Operating procedures, 
+
+Detailed technical explanations, 
+
+Implementation procedures. 
+
+Herbegement 
+
+Geographic localisation 
+
+Zone de texte 8, Zone de texteThe main datacenter is located at 49 avenue Albert Einstein, 69100 Villeurbanne (Lyon). The secondary datacenter, dedicated to redundant backup solutions as well as the implementation of Disaster Recovery Plans and Business Continuity Plans (DRP/BCP) for clients, is situated more than 500 kilometers from Villeurbanne, at 5/9 rue Mousset Robert, 75012 Paris. It can be reached from Lyon in approximately 2 hours and 30 minutes by train. 
+
+Zone de texte 9, Zone de texteCertifications 
+
+Our datacenter, certified Tier III by Bureau Veritas, has held the ISO 27001-2013 certification since 2014. Approved as a health data host since 2015, it has covered HDS perimeters (1 to 6) since 2019. It’s the first French datacenter to display three certifications across such a broad scope. 
+
+Datacenter access 
+
+AVA6 datacenters are equipped with a permanent alarm system. Access to the datacenter is carried out according to dual authentication protocols, including a personal code and a badge. The technical teams support clients or external maintainers during interventions in the server center. This system is designed to ensure service quality and complies with the requirements of current certifications. 
+
+For each visit, a form must be filled out and signed at both the beginning and end by a data center supervisor as well as by the visitor(s). An ID card is required to access.  
+
+The form is numerise and archive in database conformely by internal procedures, after the physical form is classified  
+
+The form is then digitized and archived in the document database in accordance with internal procedures, after which the physical copy is filed according to the dedicated process for managing physical documents. 
+
+Datacenter protection system 
+
+AVA6 datacenters is equipped security systems : 
+
+Video monitoring of the building, surroundings, and the datacenter 
+
+Dual authentication using badge and personal codes 
+
+Motion detection throughout the entire building 
+
+Impact detection 
+
+IR perimeter barrier for early detection around the entire building 
+
+Non stop remonte surveillance 24/7 
+
+On-site security agent with regular patrols day and night 
+
+Electronic system protection 
+
+ Armored door 
+
+Backup monitored and tested 
+
+Integral management of disater recovery plan active – passive 
+
+Comprehensive management of an active–passive Disaster Recovery Plan 
+
+Electrical protection 
+
+Our datacenter, has its own EDF transformer (20KV-1MKVA) integrated into a redundant EDF (Électricité de France) loop, thus ensuring optimal management of operations and maintenance. This transformer is installed in a secure room within the building. 
+
+The main low-voltage switchboard, dedicated to power distribution within the building, is located in a secure area adjacent to the transformer. An auxiliary low-voltage panel ensures the site’s specific power supply and manages the switch to backup power if needed. 
+
+Power generator, providing 48 hours of autonomy at full load (700 liters of fuel plus 2,000 liters in reserve tanks), ensures uninterrupted service in the event of a failure by the electricity supplier. Its fuel supply can be maintained during operation. The entire power switching chain is subject to monthly real-life scenario testing. 
+
+The generator, which undergoes monthly maintenance, is positioned on the roof in a secure area, and its technical alarms are connected both to the building’s alarm system and to remote monitoring. 
+
+ 
+
+The inverter section benefits from power module redundancy with a minimum 2N configuration, along with continuous monitoring of critical indicators (load levels, autonomy, etc.) to ensure alerts in the event of an incident. A dedicated inverter distribution panel provides redundant power supply to racks and servers via two separate lines, each feeding a 32A three-phase 10 KVA PDU rail. 
+
+Une image contenant Appareils électroniques, machine, Ventilateur mécanique, fan
+
+Le contenu généré par l’IA peut être incorrect. 
+
+All of this equipment is covered by a 24/7/365 maintenance and intervention contract. Maintenance operations are scheduled annually, except for the generator, which receives monthly maintenance. The entire power chain undergoes monthly testing during generator servicing. The servers benefit from a secured, redundant uninterruptible power supply, covered by a comprehensive maintenance and intervention contract. 
+
+The site is equipped with an uninterruptible power supply, backed by a 500 KVA generator, providing 48 hours of autonomy at full load or up to 19 days at 30% load without refueling (current load). In the event of a power outage, redundant inverters ensure continuous power supply during the generator startup. 
+
+Air conditioning 
+
+Zone de texte 11, Zone de texteThe hosting room is equipped with a high-capacity system, sized according to the available electrical power. To optimize server cooling, a “Cold-Corridor” containment solution was selected: cold air is blown into the raised technical flooring, then rises into an isolated cold aisle to efficiently cool the equipment. The expelled hot air then circulates through the ambient air of the datacenter before returning to the air conditioning units. This system limits the amount of flammable materials, improves the energy efficiency of air conditioning, and allows for greater thermal density within the racks. The air conditioning systems are of the "direct expansion" type, equipped with its own rooftop air condenser, located in the secure technical area of the building, as well as its own refrigeration circuit. An annual maintenance contract and a 24/7/365 intervention contract are in place to ensure optimal operation. These systems also regulate the humidity levels within the data center. 
+
+Supervision 
+
+The monitoring and supervision console ensures continuous surveillance of the datacenter infrastructure. All systems (temperature, humidity levels, access control, and power consumption) as well as servers (CPU, RAM, storage, etc.) are monitored in real time. In the event of an incident, alerts are sent to the data center service at any time of day or night. 
+
+Fire safety 
+
+The hosting room is equipped with an automated early smoke detection system, covering both the ambient space and the raised floor. This system relies on multi-point detectors capable of identifying the onset of a fire or the abnormal presence of combustion products by analyzing the atmospheric composition. 
+
+A dedicated device monitors the air circulating beneath the raised floor, while another oversees the overall environment of the data center. If an anomaly is detected, technical and on-call teams are immediately informed via the central alarm and remote monitoring system. 
+
+If the central system confirms the presence of a fire, the automatic extinguishing procedure is triggered. Suppression is carried out by nitrogen cylinders, which reduce the oxygen concentration in the data center air to below 11%. The room’s airtightness maintains this level for the duration required for intervention by specialized teams. 
+
+The entire system is covered by a maintenance and intervention contract. The maintenance schedule is as follows: 
+
+Detection and suppression system maintenance: semi-annual. 
+
+Venti-Test to verify room airtightness : annual 
+
+For your information, a full-scale test of the detection and suppression devices was conducted successfully in 2010, prior to the room’s commissioning, to ensure compliance and the effectiveness of the fire safety systems. 
+
+Une image contenant intérieur, bouteille, art
+
+Le contenu généré par l’IA peut être incorrect. 
+
+Internet connectivity 
+
+AVA6 works with several operators (Colt, Orange, Jaguar, Ntt, Hopus, Cogent, Acorus, Hurricane) to provide high-quality national and international peering. Our Internet access is protected by an Anti-DDOS system, with redundant internal router management, BGP, and ownership of our public IPv4 and IPv6 addresses. The fiber connections are redundant, with dual entry points, and a 2-hour MTTR according to our contracts, with delivery at different points of our backbone to guarantee service continuity. 
+
+Our server centers are connected to multiple interconnection nodes (GIX), notably LyonIX I and II. As part of a Disaster Recovery Plan (BRP), interconnection with LyonIX has enabled the implementation of a backbone featuring a high-capacity (Gbps) loop and enhanced security through dual fiber, which also allows for the deployment of the Business Continuity Plan (BCP). These GIX facilitate direct interconnections with companies present at these nodes and can improve migration to AVA6 Datacenters in this context. This infrastructure ensures a fiber connection between the Villeurbanne Datacenter and LyonIX II. The security of this link is further strengthened thanks to a redundant (Backbone) loop. 
+
+Availability  
+
+Commitments regarding availability and quality of service include: 
+
+Guaranteeing the availability rate of the hosting platform, 
+
+Guaranteeing the availability rate of the server center, 
+
+Guaranteeing the availability and restoration rates for connectivity services. 
+
+AVA6 is committed to ensuring clients a 99.9% availability rate for server centers and 99.8% for the hosting platform. It is also worth noting that a measured availability rate of 99.99999% has been observed since 2011. 
+
+Environment impact 
+
+AVA6 Datacenter incorporates modern technologies to reduce its ecological footprint while ensuring quality service. 
+
+Heat recovery: Servers heat the offices in winter. 
+
+Cold corridor: Optimizes air conditioning, reduces flammable materials and energy consumption. 
+
+Low-energy servers and platforms. 
+
+Automatic nitrogen fire extinguishing: Neutral gas, efficient and environmentally friendly. 
+
+The main production data center of the company OneOrtho Medical is subject to initiatives aimed at improving its energy efficiency. 
+
+The PUE (Power Usage Effectiveness) is a key indicator used to measure a data center’s energy efficiency. It is calculated by determining the ratio between the data center’s total energy consumption (including cooling, air handling, and uninterruptible power supplies) and the consumption dedicated exclusively to the IT systems in operation (servers, storage, network). 
+
+For the 2023 fiscal year, the PUE of OneOrtho Medical’s main production data center is 1.45. 
+
+ 
+
+Security enforced 
+
+Firewall 
+
+The data center is equipped with high-availability, redundant firewalls that control both internal and external incoming and outgoing traffic. These systems protect AVA6 and its clients from external threats such as attacks or viruses. 
+
+The firewalls incorporate several security features: 
+
+An IDPS system that detects intrusion attempts using an attack signature database. 
+
+An antivirus engine that inspects traffic passing through the firewall. 
+
+The equipment operates in active-passive mode: if an active device fails, the passive one automatically takes over. Configuration management and firewall backups are handled via a dedicated administration console. Security settings are configured on this console and then deployed to both devices. 
+
+A firewall is also installed at the secondary site to ensure service continuity in the event of a major failure at the main site. 
+
+Finally, the firewalls log all traces and connection attempts that pass through them. The transfer of these logs complies with AVA6’s traceability and logging policy. 
+
+Service publishing 
+
+To secure the OneOrtho services accessible from the Internet, AVA6 uses a multi-layered architecture. The objective is to protect servers from DDoS attacks and ensure high performance and service stability. 
+
+1. Anti-DDoS 
+
+This is the first entry point for traffic. It filters DDoS attacks (such as an excessive number of connections or malicious requests). Only “clean” traffic is allowed to pass through. 
+
+2. Firewall 
+
+Traffic then passes through a firewall, which enforces security rules (e.g. permitted ports, blocked IPs). The firewall uses SNAT to modify the source IP address of the traffic, making internal routing easier. 
+
+3. Reverse Proxy 
+
+The reverse proxy is a server that acts as a bridge between the Internet and internal web servers. It can: 
+
+distribute traffic among multiple servers, 
+
+secure connections, 
+
+accelerate access through caching. 
+
+4. Front-end Server 
+
+Finally, traffic reaches the server that actually hosts the website or application. At this stage, the traffic is clean, secure, and properly routed. 
+
+Network Isolation  
+
+To ensure complete isolation, each client in AVA6’s data centers has its own VLAN and is strictly isolated by the firewall. 
+
+In AVA6 datacenters, network isolation is a fundamental priority to guarantee the security of every client environment. In practice, each hosted client benefits from a dedicated VLAN, meaning they have an entirely separate network segment, distinct from those of other users. This logical separation prevents any unauthorized communication between different clients’ networks and drastically reduces the risks of intrusion or lateral attacks. 
+
+Access to these VLANs is strictly controlled by firewalls, configured to meticulously filter inbound and outbound traffic according to security rules specific to each environment. As a result, only explicitly authorized flows may pass from one segment to another, reinforcing the containment of data and hosted services. This architecture is complemented by continuous monitoring and regular audits to detect any abnormal or malicious access attempts. 
+
+Backup  
+
+To ensure data resilience and business continuity, AVA6 implements a comprehensive backup policy: copies are made daily and retained for 14 days on secure storage space. 
+
+Access to backup environments is strictly regulated, limited to authorized personnel according to the principle of least privilege, and every operation is logged to ensure complete traceability. 
+
+An offline backup of the data is performed every three months, with one copy kept at the OneOrtho headquarters and another at AVA6’s premises 
+
+With this approach, hosted organizations benefit from high data availability, rapid restoration in the event of need, and strengthened compliance with current security standards, particularly those recommended by the relevant authorities. 
+
+IP range protection  
+
+ANSSI (the French National Agency for the Security of Information Systems) regularly conducts analyses (“network scans”) to detect system vulnerabilities and reduce the risk of cyberattacks. These operations help to map the services exposed on the Internet, identify known weaknesses, and monitor the application of patches. Several services are available: SILENE for mapping the external attack surface, and ADS for auditing and enhancing the security of Active Directory directories. It should be noted that AVA6 IP addresses are protected and benefit from appropriate security measures, in compliance with ANSSI recommendations. 
+
+ 
+
+ 
