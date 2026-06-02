@@ -22,7 +22,7 @@ Aligné sur le tableau initial du §3.3.
 | Node.js Security | Node.js (runtime front / build) |
 | PHP Security Releases + GitHub Advisories `php/php-src` | PHP (runtime backend Symfony) |
 | Symfony Security Advisories | Symfony (backend) |
-| Packagist Security Advisories | Composer (gestionnaire de dépendances PHP) |
+| GitHub Advisories par composant (php/php-src, symfony/*, twig/*, doctrine/*, etc.) + Snyk + Dependabot | Composer (gestionnaire de dépendances PHP) |
 | MariaDB Security Releases | MariaDB (base de données) |
 | MSRC Security Update Guide | Windows Server (cloud) |
 | NEMA DICOM Standard | DICOM (imagerie médicale) |
@@ -40,7 +40,6 @@ Aligné sur le format des §3.1 et §3.2 du plan.
 | PHP Security Releases | https://www.php.net/ChangeLog-8.php | Web | Mensuelle |
 | GitHub Advisories `php/php-src` | https://github.com/php/php-src/security/advisories | API | Mensuelle |
 | Symfony Security Advisories | https://symfony.com/blog/category/security-advisories | RSS | Mensuelle |
-| Packagist Security Advisories | https://packagist.org/security-advisories | API | Continue (push) |
 | MariaDB Security Releases | https://mariadb.org/about/security/ | RSS | Mensuelle |
 | MSRC Security Update Guide (Patch Tuesday) | https://msrc.microsoft.com/update-guide/ | RSS / API | Mensuelle |
 | NEMA DICOM Standard Newsroom | https://www.dicomstandard.org/news | RSS | Mensuelle |
@@ -53,7 +52,7 @@ Aligné sur le format des §3.1 et §3.2 du plan.
 
 ## Articulation entre canaux (source primaire vs scanners)
 
-Les sources éditeur (Angular Security Advisories, Symfony Security Advisories, Three.js, Packagist) restent les **sources primaires autoritaires** pour la qualification d'une vulnérabilité (description, CVSS, vecteur, version corrigée).
+Les sources éditeur (Angular Security Advisories, Symfony Security Advisories, Three.js, GitHub Advisories par composant) restent les **sources primaires autoritaires** pour la qualification d'une vulnérabilité (description, CVSS, vecteur, version corrigée).
 
 Snyk, GitHub Dependabot, Trivy et — à terme — Dependency-Track sont des **canaux de détection automatisée**, complémentaires, qui :
 - accélèrent le signalement (push push push contre lecture mensuelle des advisories),
@@ -74,7 +73,7 @@ Colonnes : ce que chaque canal automatisé couvre ou non par rapport à chaque s
 | Node.js Security | ✗ | ✗ | ✗ | ✔ (si Node embarqué dans image) | Le binaire Node n'est pas une dépendance npm, suivi uniquement par source éditeur et Trivy image |
 | PHP Security Releases + GitHub Advisories `php/php-src` | ✗ | ✗ | ✗ | ✔ (si PHP embarqué dans image) | Idem Node, le binaire PHP n'est pas suivi par scanner SCA |
 | Symfony Security Advisories | ✔ | ✔ (via SBOM CycloneDX) | ✔ | ✗ | Couverture forte multi-canal sur packages Composer `symfony/*` |
-| Packagist Security Advisories + `composer audit` | ✔ | ✔ (via SBOM CycloneDX) | ✔ | ✗ | Recouvrement large sur l'ensemble des packages Composer |
+| GitHub Advisories Composer (par composant) | ✔ | ✔ (via SBOM CycloneDX) | ✔ | ✗ | Sources éditeur (Symfony, Twig, Doctrine, php/php-src) déjà suivies individuellement ; Packagist non listé car simple agrégateur de GitHub Advisories + FriendsOfPHP, déjà couvert par Snyk + Dependabot |
 | MariaDB Security Releases | ✗ | ✗ | ✗ | partiel (si embarqué dans image) | Serveur de base hors scope SCA, source éditeur uniquement |
 | MSRC Security Update Guide (Windows Server) | ✗ | ✗ | ✗ | ✗ | OS hôte hors scope, source éditeur uniquement |
 | NEMA DICOM Standard + recherche NVD DICOM | ✗ | ✗ | ✗ | ✗ | Standard, pas un package |
