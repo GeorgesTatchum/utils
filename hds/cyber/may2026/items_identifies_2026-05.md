@@ -1,7 +1,7 @@
-# §3 Items identifiés — Mai 2026
+# §3 Items identifiés — Mai 2026 (mois complet)
 
-Période : 01/05/2026 au 22/05/2026.
-Méthode : croisement des items remontés par les sources §2 avec les composants présents dans `saas_local/app/composer.lock` (Symfony) et `saas_local/modulesjs/*/package.json` (Angular).
+Période : 01/05/2026 au 31/05/2026.
+Méthode : croisement des items remontés par les sources §2 avec les composants présents dans `saas_local/app/composer.lock` (Symfony), `saas_local/modulesjs/*/package.json` (Angular) et `curent-mariadb-onserver.md` (parc MariaDB).
 
 > Convention : un item = un identifiant unique (CVE ou GHSA). Pour un advisory CERT-FR sans CVE individuel, l'item porte le numéro de l'avis ANSSI.
 
@@ -9,14 +9,15 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 
 | Indicateur | Valeur |
 |-----------|--------|
-| Total items examinés | 116 |
-| Applicables OneOrtho | 12 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (8 CVE) |
-| Non applicables | 28 (Symfony mailer/notifier/html-sanitizer/json-path, Angular, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée) |
+| Total items examinés | 165 |
+| Applicables OneOrtho | 17 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (6 CVE) |
+| Non applicables | 41 (Symfony mailer/notifier/html-sanitizer/json-path/ux, Angular platform-server/service-worker/HttpTransferCache, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée et 4 anciennes hors période) |
 | À investiguer | 6 (Symfony X509, PHP urldecode/mb/DOMNode/check_encoding, Docker, Microsoft Defender x2) |
 | Priorité P1 | 0 (aucune des CVE applicables n'est en KEV actif sur composant utilisé) |
-| Priorité P2 | 8 (6 RCE Critical Windows Server + 2 CVE Symfony) |
-| Priorité P3 | 5 (PHP-FPM XSS, Docker, MariaDB items 10a et 10b CVSS ≥ 7) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
-| Priorité P4 | 1 groupé (8 CVE MariaDB Item 10c, CVSS < 7) |
+| Priorité P2 | 9 (6 RCE Critical Windows Server + 2 CVE Symfony 20/05 + 1 Angular XSS Template/Component) |
+| Priorité P3 | 9 (PHP-FPM XSS, Docker, Nginx, 3 CVE Twig sandbox, Angular DoS digitsInfo, MariaDB items 10a+10b CVSS ≥ 7 dont CVSS 10.0) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
+| Priorité P4 | 1 groupé (6 CVE MariaDB Item 10c, CVSS < 7) |
+| Hors périmètre runtime (postes dev) | 2 (GHSA-q94j-3wj3-4xcm + GHSA-ccq4-xmxr-8hcq Critique, extensions VS Code Angular Language Service) |
 
 ## 3.2 Détail des items applicables
 
@@ -194,70 +195,145 @@ Source : Documentation officielle MariaDB Corporation (GitHub raw) + inventaire 
 | 10.11 LTS | 10.11.15 | 2 |
 | 10.6 LTS | 10.6.24 | 4 |
 
-**Matrice d'applicabilité** (✗ = vulnérable / ✓ = fix présent / — = branche non affectée) :
+**Matrice d'applicabilité** mise à jour au 01/06/2026 (✗ = vulnérable / ✓ = fix présent / — = branche non affectée) :
 
-| CVE | CVSS | Fix branche 11.8 | Fix branche 11.4 | Fix branche 10.11 | Fix branche 10.6 | 11.8.5 | 11.4.9 | 10.11.15 | 10.6.24 |
-|-----|------|------------------|------------------|-------------------|-------------------|--------|--------|----------|---------|
-| CVE-2026-44168 | 8.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ |
-| CVE-2026-32710 | 8.6 | 11.8.6 | 11.4.10 | — | — | ✗ | ✗ | — | — |
-| CVE-2026-35549 | 6.5 | 11.8.6 | 11.4.10 | — | — | ✗ | ✗ | — | — |
-| CVE-2026-34303 | 6.5 | 11.8.6 | 11.4.10 | 10.11.16 | — | ✗ | ✗ | ✗ | — |
-| CVE-2026-3494 | 4.3 | 11.8.6 | 11.4.10 | 10.11.16 | 10.6.25 | ✗ | ✗ | ✗ | ✗ |
-| CVE-2026-44173 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ |
-| CVE-2026-44172 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ |
-| CVE-2026-44170 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ |
-| CVE-2026-44171 | 6.3 | 11.8.7 | 11.4.11 | — | — | ✗ | ✗ | — | — |
-| CVE-2026-44169 | 4.3 | 11.8.7 | 11.4.11 | — | — | ✗ | ✗ | — | — |
-| CVE-2026-21968 | 6.5 | 11.8.4 | 11.4.9 | 10.11.15 | 10.6.24 | ✓ | ✓ | ✓ | ✓ |
+| CVE | CVSS | Fix branche 11.8 | Fix branche 11.4 | Fix branche 10.11 | Fix branche 10.6 | 11.8.5 | 11.4.9 | 10.11.15 | 10.6.24 | Période de publication |
+|-----|------|------------------|------------------|-------------------|-------------------|--------|--------|----------|---------|-----------------------|
+| **CVE-2026-49261** | **10.0** | 11.8.8 | 11.4.12 | 10.11.18 | 10.6.27 | ✗ | ✗ | ✗ | ✗ | Apparue entre 22 et 31/05 |
+| **CVE-2026-48165** | 8.0 | 11.8.8 | 11.4.12 | 10.11.18 | 10.6.27 | ✗ | ✗ | ✗ | ✗ | Apparue entre 22 et 31/05 |
+| **CVE-2026-48163** | 8.0 | 11.8.8 | 11.4.12 | 10.11.18 | 10.6.27 | ✗ | ✗ | ✗ | ✗ | Apparue entre 22 et 31/05 |
+| CVE-2026-44168 | 8.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ | Au 22/05 |
+| CVE-2026-44173 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ | Au 22/05 |
+| CVE-2026-44172 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ | Au 22/05 |
+| CVE-2026-44171 | 6.3 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ | Au 22/05 |
+| CVE-2026-44170 | 5.0 | 11.8.7 | 11.4.11 | 10.11.17 | 10.6.26 | ✗ | ✗ | ✗ | ✗ | Au 22/05 |
+| CVE-2026-44169 | 4.3 | 11.8.7 | 11.4.11 | — | — | ✗ | ✗ | — | — | Au 22/05 |
 
-**CVE-2026-21968** est l'unique CVE non applicable : le parc OneOrtho est exactement aux versions porteuses du fix sur les 4 branches utilisées. Toutes les autres CVE sont applicables sur au moins une partie du parc.
+**Évolution depuis le rapport mi-mois (22/05) :**
+- **Ajout de 3 nouvelles CVE** dans le document MariaDB officiel entre 22 et 31/05, dont **CVE-2026-49261 CVSS 10.0** (critique) et 2 CVSS 8.0. Toutes les 16 instances OneOrtho sont vulnérables.
+- **Retrait de 5 CVE plus anciennes** du document de référence (CVE-2026-21968, 3494, 32710, 34303, 35549) — ces CVE sont vraisemblablement antérieures à mai 2026 et sont reclassées en §3.3 (non applicables pour ce mois car hors période).
+- Une nouvelle release MariaDB est disponible : 11.8.8 / 11.4.12 / 10.11.18 / 10.6.27. Le plan de patch unique passe donc des cibles "11.8.7 / 11.4.11 / 10.11.17 / 10.6.26" (rapport mi-mois) à **"11.8.8 / 11.4.12 / 10.11.18 / 10.6.27"** (rapport mois complet) — qui couvrent rétro-activement toutes les CVE.
 
-**Hypothèse de datation** (le document MariaDB ne contient pas de dates) :
-- Les CVE de numéro élevé (CVE-2026-44168 à 44173) correspondent à la release la plus récente listée (12.3.2 / 11.8.7 / 11.4.11 / 10.11.17 / 10.6.26) et tombent vraisemblablement dans la période 01/05–22/05/2026 ou immédiatement antérieure.
-- Les CVE de numéro intermédiaire (CVE-2026-32710, 34303, 35549, 3494) correspondent à la release intermédiaire (11.8.6 / 11.4.10 / 10.11.16 / 10.6.25) et sont antérieures à mai 2026.
-- Les CVE de numéro bas (CVE-2026-21968) sont plus anciennes encore.
-
-Conséquence pratique : ce premier rapport rattrape l'ensemble des CVE 2026 toutes périodes confondues, ce qui est cohérent avec un exercice initial. Les rapports mensuels suivants ne devront plus reporter que les CVE nouvelles du mois (numérotation à surveiller).
-
-#### Item 10a — CVE-2026-44168 (CVSS 8.0)
+#### Item 10a — CVE-2026-49261 (CVSS 10.0) — **point d'attention critique**
 
 | Champ | Valeur |
 |-------|--------|
+| Titre | CVE-2026-49261 MariaDB Community Server (CVSS 10.0) |
 | Périmètre vulnérable | 16 instances sur 16 (toutes branches du parc) |
 | KEV | Non |
-| Exposition | Interne (MariaDB derrière le portail Symfony) |
-| Priorité retenue | **P3** (CVSS ≥ 7, exposition interne, non KEV) |
-| Action décidée | Patch des 4 branches LTS vers les versions corrigées : 11.8.5 → 11.8.7, 11.4.9 → 11.4.11, 10.11.15 → 10.11.17, 10.6.24 → 10.6.26 |
-| Échéance | J+30 (matrice §4.4 P3) |
+| Exposition | Interne (MariaDB derrière le portail Symfony, pas exposé internet directement) |
+| Priorité retenue | **P3** strictement par la matrice §4.4 (CVSS ≥ 7, exposition interne, non KEV). **Attention** : CVSS 10.0 = sévérité maximale ; même avec exposition interne, recommandation d'accélérer ce patch sans attendre J+30 |
+| Action décidée | Patch des 4 branches LTS vers les versions cibles : 11.8.5 → 11.8.8, 11.4.9 → 11.4.12, 10.11.15 → 10.11.18, 10.6.24 → 10.6.27 |
+| Échéance | J+30 réglementaire, mais traitement recommandé sous J+14 vu le CVSS |
 | Responsable | DevSecOps + équipe infrastructure |
 
-#### Item 10b — CVE-2026-32710 (CVSS 8.6)
+#### Item 10b — CVE-2026-48165 et CVE-2026-48163 (CVSS 8.0 chacune)
 
 | Champ | Valeur |
 |-------|--------|
-| Périmètre vulnérable | 10 instances (11.8.5 ×8 + 11.4.9 ×2) — branches 10.11 et 10.6 non affectées |
+| Périmètre vulnérable | 16 instances sur 16 |
 | KEV | Non |
 | Exposition | Interne |
 | Priorité retenue | **P3** (CVSS ≥ 7, exposition interne, non KEV) |
-| Action décidée | Patch couvert par la même montée de version que l'item 10a (versions cibles 11.8.7 et 11.4.11 contiennent aussi le fix de 11.8.6 et 11.4.10) |
+| Action décidée | Couvertes par la même montée de version que l'item 10a (cibles 11.8.8 / 11.4.12 / 10.11.18 / 10.6.27) |
 | Échéance | J+30 |
 | Responsable | DevSecOps + équipe infrastructure |
 
-#### Item 10c — Groupe CVE moyennes (CVSS 4.3 à 6.5)
+#### Item 10c — Groupe CVE 5.0-6.3 (CVE-2026-44173, 44172, 44171, 44170, 44169) et CVE-2026-44168 (8.0)
 
-CVE concernées : CVE-2026-44173, 44172, 44170, 44171, 44169, 34303, 35549, 3494.
+CVE concernées : CVE-2026-44168 (CVSS 8.0), CVE-2026-44173 (5.0), CVE-2026-44172 (5.0), CVE-2026-44171 (6.3), CVE-2026-44170 (5.0), CVE-2026-44169 (4.3).
 
 | Champ | Valeur |
 |-------|--------|
-| Périmètre vulnérable | Variable selon CVE (voir matrice ci-dessus). Toutes au moins partiellement applicables |
+| Périmètre vulnérable | 16 instances pour la plupart, 10 instances pour CVE-2026-44169 (branches 11.x seulement) |
 | KEV | Non |
 | Exposition | Interne |
-| Priorité retenue | **P4** (CVSS < 7, exposition interne, non KEV) — matrice §4.4 |
-| Action décidée | Traitement groupé : la montée de version unique vers 11.8.7 / 11.4.11 / 10.11.17 / 10.6.26 décidée en items 10a-10b couvre simultanément l'ensemble de ces CVE. Aucun patch dédié supplémentaire requis |
-| Échéance | Prochain cycle de patch trimestriel infrastructure |
+| Priorité retenue | **P3** pour CVE-2026-44168 (CVSS 8.0), **P4** pour les 5 autres (CVSS < 7) |
+| Action décidée | Couvertes par la même montée de version unique que items 10a-10b (11.8.8 / 11.4.12 / 10.11.18 / 10.6.27 contiennent aussi les fix de 11.8.7 / 11.4.11 / 10.11.17 / 10.6.26) |
+| Échéance | J+30 |
 | Responsable | DevSecOps + équipe infrastructure |
 
-**Synthèse Item 10** : un seul plan d'action consolidé = monter chaque instance vers la dernière LTS de sa branche (11.8.7, 11.4.11, 10.11.17, 10.6.26). Ce plan unique résout 10 CVE sur les 16 instances, dont 2 sévérité élevée (CVE-2026-32710 et CVE-2026-44168).
+**Synthèse Item 10** : **un seul plan d'action consolidé** = monter chaque instance vers la dernière LTS de sa branche (11.8.8, 11.4.12, 10.11.18, 10.6.27). Ce plan unique résout les 9 CVE applicables sur les 16 instances, dont 1 CVSS 10.0 (CVE-2026-49261) et 3 CVSS 8.0 (CVE-2026-48165, 48163, 44168).
+
+### Item 11 — Twig sandbox bypass (3 CVE, 27/05/2026)
+
+| Champ | Valeur |
+|-------|--------|
+| Titre | Vulnérabilités sandbox Twig — CVE-2026-48805, CVE-2026-48806, CVE-2026-46636 |
+| Source | Symfony Security Advisories (27/05/2026) |
+| Date publication | 27/05/2026 |
+| CVE | CVE-2026-48805 (régression état sandbox dans wrappers internes), CVE-2026-48806 (contournement via `__toString()` sur clés mapping dynamiques), CVE-2026-46636 (contournement allowlist sandbox entre rendus de templates cachés) |
+| Composant impacté | `twig/twig` (présent dans composer.lock) |
+| Produit concerné | Portail Symfony OneSoftware |
+| Exposition | Interne / Internet selon contexte. Vulnérabilités exploitables seulement si Twig sandbox est utilisé pour exécuter des templates fournis par utilisateur (peu probable côté OneSoftware mais à confirmer). À investiguer |
+| KEV | Non |
+| Priorité retenue | **P3** par défaut. Si Twig sandbox non utilisé pour des templates utilisateur → reclassé non applicable |
+| Action décidée | Étape 1 : investiguer l'utilisation du sandbox Twig dans OneSoftware (recherche de `\Twig\Sandbox\SecurityPolicy` ou `\Twig\Extension\SandboxExtension`). Étape 2 : si utilisé, patcher Twig vers la version corrigée |
+| Échéance | J+30 |
+| Responsable | Tech Lead Symfony |
+
+### Item 12 — Angular DoS via OOM in Number Formatting (GHSA-p3vc-36g9-x9gr, 28/05/2026)
+
+| Champ | Valeur |
+|-------|--------|
+| Titre | Denial of Service (DoS) via OOM in Number Formatting (digitsInfo) |
+| Source | Angular Security Advisories (GitHub) |
+| Date publication | 28/05/2026 |
+| Sévérité | Élevée |
+| Composant impacté | `@angular/common` (présent dans tous les `package.json` des planificateurs Hip2D, Hip3D, KneeMadison, Shoulder3D) |
+| Produit concerné | Planificateurs Angular (4 modules) |
+| Exposition | Internet (modules livrés au navigateur client) |
+| KEV | Non |
+| Priorité retenue | **P3** (CVSS sévérité élevée mais DoS côté client navigateur, non KEV) |
+| Action décidée | Montée de version Angular dans chaque module vers la version corrigée |
+| Échéance | J+30 |
+| Responsable | Tech Lead Angular (4 modules) |
+
+### Item 13 — Angular XSS Template/Dynamic Component (GHSA-692r-grfm-v8x7, 28/05/2026)
+
+| Champ | Valeur |
+|-------|--------|
+| Titre | Angular Template and Dynamic Component Namespace Bypass leading to Cross-Site Scripting (XSS) |
+| Source | Angular Security Advisories (GitHub) |
+| Date publication | 28/05/2026 |
+| Sévérité | Modérée |
+| Composant impacté | `@angular/core` (templates et composants dynamiques, présent dans tous les modules) |
+| Produit concerné | Planificateurs Angular (4 modules) |
+| Exposition | Internet (XSS exploitable si données utilisateur passent par certains patterns de rendu) |
+| KEV | Non |
+| Priorité retenue | **P2** (XSS + CVSS ≥ 7 + exposition internet sur composant exécuté navigateur) |
+| Action décidée | Montée de version Angular vers la version corrigée. Audit du code pour vérifier les patterns vulnérables avant patch |
+| Échéance | J+14 |
+| Responsable | Tech Lead Angular |
+
+### Item 14 — Vulnérabilités Nginx (CERTFR-2026-AVI-0643, 26/05/2026)
+
+| Champ | Valeur |
+|-------|--------|
+| Titre | Multiples vulnérabilités Nginx — Exécution de code à distance, déni de service |
+| Source | CERT-FR |
+| Date publication | 26/05/2026 |
+| Composant impacté | Nginx — présent dans `saas_local/app/docker/nginx/Dockerfile` (nginx:1.23.3-alpine) et `docker/nginx-alpine/Dockerfile` (nginx:stable-alpine3.23) |
+| Produit concerné | Conteneurs de build/CI Docker — pas un runtime de production directement (IIS sert le portail en production) mais utilisé pour les builds livrés |
+| Exposition | Hors ligne / Interne (CI seulement) |
+| KEV | Non |
+| Priorité retenue | **P3** (RCE potentielle mais sur composant CI uniquement, exposition interne) |
+| Action décidée | Investiguer les CVE détaillées de l'avis, mettre à jour les images Docker Nginx (alpine 3.23+ ou plus récent selon advisory) |
+| Échéance | J+30 |
+| Responsable | DevSecOps |
+
+### Item 15 — CVE Symfony additionnelles du 27/05 (référence CERT-FR)
+
+Référence : CERTFR-2026-AVI-0653 mentionne SSRF, XSS, contournement dans Symfony. À l'inspection, les CVE Symfony du 27/05 listées par Symfony Security Advisories sont exclusivement les 3 CVE Twig sandbox déjà traitées en Item 11. Le CERT-FR semble agréger une annonce élargie incluant possiblement les CVE UX du 29/05 (non applicables). À confirmer manuellement lors de la consultation de l'avis détaillé CERT-FR. Pas d'action séparée requise au-delà de l'Item 11.
+
+### Items hors périmètre runtime (postes développeurs) — pour information
+
+Deux advisories Angular du 23 et 28/05 concernent l'extension **VS Code Angular Language Service** :
+
+- **GHSA-ccq4-xmxr-8hcq** (23/05, **Critique**) : Insecure Workspace Configuration and Dynamic Library Loading
+- **GHSA-q94j-3wj3-4xcm** (28/05, Élevée) : RCE via JSDoc Hover Command Injection
+
+Ces vulnérabilités touchent les **postes de développement Angular** (extensions VS Code installées par les Tech Leads Angular), pas le runtime produit livré aux clients. Hors périmètre strict du présent rapport mais à signaler dans la PSSI poste dev : recommander la mise à jour immédiate de l'extension VS Code pour les développeurs Angular OneOrtho. Action portée par DevSecOps en parallèle de cette revue.
 
 ## 3.3 Items non applicables (traçabilité)
 
@@ -294,11 +370,53 @@ CVE concernées : CVE-2026-44173, 44172, 44170, 44171, 44169, 34303, 35549, 3494
 
 Note : les items "À investiguer" sont reclassés en items applicables P3 par défaut tant que l'investigation n'est pas conclusive. Voir aussi item 5 (PHP-FPM XSS) qui est lui applicable.
 
-### MariaDB CVE-2026-21968 — 1 item écarté
+### MariaDB — 5 items écartés
 
 | CVE | Raison non applicabilité |
 |-----|--------------------------|
-| CVE-2026-21968 (CVSS 6.5) | Le parc OneOrtho est aux versions exactes porteuses du fix (11.4.9, 11.8.4+, 10.11.15, 10.6.24). Vulnérabilité couverte sur les 16 instances |
+| CVE-2026-21968 (CVSS 6.5) | Le parc OneOrtho est aux versions exactes porteuses du fix. Vulnérabilité déjà couverte. CVE retirée du document de référence MariaDB entre 22 et 31/05 |
+| CVE-2026-3494 (CVSS 4.3) | CVE retirée du document de référence MariaDB entre 22 et 31/05. Antérieure à la période ce rapport |
+| CVE-2026-32710 (CVSS 8.6) | Idem, retirée du document de référence. Antérieure à mai 2026 |
+| CVE-2026-34303 (CVSS 6.5) | Idem |
+| CVE-2026-35549 (CVSS 6.5) | Idem |
+
+Note : ces 5 CVE seront néanmoins couvertes par la montée de version planifiée à l'Item 10 (versions cibles 11.8.8 / 11.4.12 / 10.11.18 / 10.6.27 contiennent tous les fix antérieurs).
+
+### Symfony Security Advisories du 27/05 et 29/05/2026 — 7 items UX écartés
+
+| CVE | Titre | Raison non applicabilité |
+|-----|-------|--------------------------|
+| CVE-2026-49216 | XSS dans `symfony/ux-autocomplete` via données AJAX | `symfony/ux-autocomplete` absent du composer.lock |
+| CVE-2026-49211 | Exposition informations via wildcards LIKE dans EntitySearchUtil | Composant `symfony/ux-*` absent |
+| CVE-2026-49212 | LiveComponentHydrator HMAC sans liaison composant/slot | `symfony/ux-live-component` absent |
+| CVE-2026-49215 | Contournement CSRF dans `symfony/ux-live-component` (CORS-Safelisted) | `symfony/ux-live-component` absent |
+| CVE-2026-49208 | LiveProps date sans format parsées avec constructeur DateTime permissif | `symfony/ux-live-component` absent |
+| CVE-2026-49209 | DoS dans `symfony/ux-live-component` via requêtes batch non bornées | `symfony/ux-live-component` absent |
+| CVE-2026-49210 | XSS dans `symfony/ux-live-component` via tag composant enfant | `symfony/ux-live-component` absent |
+
+### Angular Security Advisories du 23 et 28/05/2026 — 4 items écartés runtime
+
+| GHSA | Titre | Raison non applicabilité runtime |
+|------|-------|----------------------------------|
+| GHSA-95qp-cmmw-mgqv | Request Credential & Cache Policy Stripping in Angular Service Worker | `@angular/service-worker` non utilisé par les planificateurs |
+| GHSA-gv2q-mqqv-365m | Request Redirect Policy Bypass in Angular Service Worker | `@angular/service-worker` non utilisé |
+| GHSA-q6f4-qqrg-jv6x | Information Leak via Default Caching of Credentialed Requests in HttpTransferCache | HttpTransferCache lié au SSR Angular ; pas de SSR utilisé par les planificateurs |
+| GHSA-xrxm-cp7j-8xf6 | URL Parser Differential in `@angular/platform-server` leading to SSRF Allowlist Bypass | `@angular/platform-server` non utilisé (déjà écarté pour GHSA-rfh7-fxqc-q52v) |
+
+Note : les 2 GHSA `@angular language service` (extension VS Code) ne sont pas écartés en runtime — ils sont traités séparément en hors périmètre poste dev (Item 14 du §3.2).
+
+### CISA KEV du 01/05 au 31/05/2026 — 19 items écartés (sur 21 ajoutés)
+
+Items écartés du 22 au 31/05 (en complément des 13 du 01-21/05) :
+
+| CVE | Date ajout | Vendor / Produit | Raison non applicabilité |
+|-----|-----------|------------------|--------------------------|
+| CVE-2026-9082 | 22/05/2026 | Drupal Core | Drupal non utilisé |
+| CVE-2026-48172 | 26/05/2026 | LiteSpeed cPanel Plugin | LiteSpeed/cPanel non utilisés |
+| CVE-2026-48027 | 27/05/2026 | Nx Console | Nx non utilisé |
+| CVE-2026-45321 | 27/05/2026 | TanStack | TanStack non utilisé |
+| CVE-2026-8398 | 27/05/2026 | Daemon Tools Lite | Outil bureautique non en stack production |
+| CVE-2026-0257 | 29/05/2026 | Palo Alto PAN-OS Auth Bypass | Équipement réseau Palo Alto non utilisé (à confirmer infra) |
 
 ### CISA KEV du 01/05 au 22/05/2026 — 13 items écartés (sur 15 ajoutés)
 
@@ -319,6 +437,14 @@ Note : les items "À investiguer" sont reclassés en items applicables P3 par d�
 | CVE-2026-31431 | Linux Kernel | OS hôte = Windows Server, pas Linux en prod |
 
 Les 2 CVE KEV applicables (CVE-2026-41091 et CVE-2026-45498) sont en §3.2 (Items 8 et 9).
+
+### CERT-FR du 22/05 au 31/05/2026 — 35 items écartés (complément)
+
+Tous les avis CERT-FR de la fenêtre 22-31/05 ne concernant aucun composant nommé en §2.2 du plan. Liste résumée (motif systématique : éditeur ou produit non utilisé par OneSoftware) :
+
+Drupal, SPIP, Tenable Sensor Proxy, Linux Debian/Ubuntu/Red Hat/SUSE ×6, Microsoft Edge/Microsoft générique ×2, Mattermost ×2, Trend Micro (CVE exploitée activement mais produit non utilisé), Stormshield, CPython, Roundcube, Spring AI, Firefox iOS, Kaspersky, Joomla, Samba, Check Point, Veeam ×2, NetApp, Google Chrome, Apereo CAS, GitLab, Centreon, Elastic Kibana, IBM, Oracle Database.
+
+Tous écartés. Trace conservée pour audit.
 
 ### CERT-FR du 01/05 au 22/05/2026 — 36 items écartés
 

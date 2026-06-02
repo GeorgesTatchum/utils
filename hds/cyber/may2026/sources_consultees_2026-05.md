@@ -1,7 +1,9 @@
-# §2 Sources consultées — Mai 2026
+# §2 Sources consultées — Mai 2026 (mois complet)
 
-Période couverte : 01/05/2026 au 22/05/2026 (consolidation à mi-mois, premier rapport).
-Date de consultation : 22/05/2026.
+Période couverte : 01/05/2026 au 31/05/2026.
+Date de consultation initiale (mi-mois) : 22/05/2026.
+Date de consultation finale (clôture mois) : 01/06/2026.
+Date de revue planifiée : 04/06/2026 (1er jeudi de juin).
 Analyste : Georges TATCHUM.
 
 > Légende statut : ✔ consultée et traitée / ✗ non consultable (motif en remarques) / ☐ planifiée mais non encore consultée.
@@ -10,22 +12,22 @@ Analyste : Georges TATCHUM.
 
 | Source | Consultée | Date dernière publication lue | Nb items remontés (période) | Remarques |
 |--------|-----------|------------------------------|------------------------------|-----------|
-| CISA KEV Catalog | ✔ | 21/05/2026 | 15 items ajoutés, 2 potentiellement applicables | Récupération via curl direct du flux JSON officiel https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json (la page HTML reste bloquée par WAF). Items applicables potentiels : CVE-2026-41091 et CVE-2026-45498 (Microsoft Defender) — voir §3 du rapport |
+| CISA KEV Catalog | ✔ | 29/05/2026 | 21 items ajoutés sur mai, 2 potentiellement applicables | Récupération via curl direct du flux JSON officiel https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json (la page HTML reste bloquée par WAF). Items applicables potentiels (inchangés depuis le 22/05) : CVE-2026-41091 et CVE-2026-45498 (Microsoft Defender). Les 6 ajouts entre 22 et 31/05 (Drupal, Nx Console, TanStack, Daemon Tools Lite, LiteSpeed cPanel, Palo Alto PAN-OS) sont tous hors stack |
 | NVD / CVE | ☐ | 22/05/2026 | n/a | Non consulté sur cet exercice. Source de référence consultée indirectement via les advisories spécifiques aux composants stack |
-| CERT-FR (ANSSI) | ✔ | 21/05/2026 | 38 items lus, 2 applicables OneOrtho | 36 items non applicables (autres éditeurs). Items applicables : CERTFR-2026-AVI-0617 (Symfony) et CERTFR-2026-AVI-0620 (Docker) |
+| CERT-FR (ANSSI) | ✔ | 29/05/2026 | 74 items lus sur mai, 4 applicables OneOrtho | Items applicables : CERTFR-2026-AVI-0617 (Symfony 20/05), CERTFR-2026-AVI-0620 (Docker 20/05), CERTFR-2026-AVI-0653 (Symfony 27/05), CERTFR-2026-AVI-0643 (Nginx 26/05). Voir §3 |
 | GitHub Security Advisories | ✔ | 22/05/2026 | Multiples (voir détail par composant ci-dessous) | Consultation par composant : Angular, Three.js, php/php-src |
 | CISA ICS Medical Advisories | ✗ | 22/05/2026 | n/a | Accès WebFetch retourné HTTP 403 sur https://www.cisa.gov/news-events/ics-advisories (WAF anti-bot). Consultation manuelle requise via navigateur avant validation finale |
 | FDA Medical Device Safety | ✗ | 22/05/2026 | n/a | Accès WebFetch retourné HTTP 404 sur https://www.fda.gov/medical-devices/medical-device-safety/safety-communications. Consultation manuelle requise via navigateur avant validation finale |
 | ENISA Health sector | ☐ | 22/05/2026 | n/a | Non consulté ce mois. Source à cadence trimestrielle |
 | H-ISAC | ✗ | 22/05/2026 | n/a | Accès membre non activé à ce jour |
-| Angular Security Advisories | ✔ | 14/05/2026 | 1 item, non applicable | GHSA-rfh7-fxqc-q52v (SSRF via Hostname Hijacking dans `@angular/platform-server`, 14/05/2026, sévérité Haute). Non applicable : `@angular/platform-server` n'est pas une dépendance des planificateurs (qui utilisent `@angular/platform-browser` et `@angular/platform-browser-dynamic`) |
+| Angular Security Advisories | ✔ | 28/05/2026 | 9 items sur mai, 2 applicables runtime + 2 sur poste dev | GHSA-rfh7-fxqc-q52v 14/05 (platform-server, non applicable). Batch 28/05 : 7 advisories dont 2 applicables runtime (GHSA-p3vc-36g9-x9gr DoS digitsInfo, GHSA-692r-grfm-v8x7 XSS Template/Component) et 2 sur extension VS Code (GHSA-q94j-3wj3-4xcm RCE, GHSA-ccq4-xmxr-8hcq Critique Workspace Config, 23/05). Détail en §3 |
 | Node.js Security | ✔ | 24/03/2026 | 0 item sur la période | Dernier avis visible : 24 mars 2026. Aucun avis publié entre le 01/05 et le 22/05/2026 |
 | PHP Security Releases | ✔ | 07/05/2026 | 1 release sécurité | PHP 8.5.6 publiée le 7 mai 2026. La version utilisée par OneOrtho (`>= 8.1`) doit recevoir un correctif équivalent dans la branche 8.1.x à confirmer manuellement sur https://www.php.net/downloads.php#v8.1 |
 | GitHub Advisories `php/php-src` | ✔ | 07/05/2026 | 9 advisories | Tous publiés le 07/05/2026. Détail en §3 du rapport |
-| Symfony Security Advisories | ✔ | 20/05/2026 | 10 advisories | Tous publiés le 20/05/2026. Détail en §3 du rapport |
+| Symfony Security Advisories | ✔ | 29/05/2026 | 20 advisories sur mai (3 batches) | Batch 20/05 : 10 CVE (3 applicables : runtime, routing, security-http). Batch 27/05 : 3 CVE Twig sandbox (Twig présent dans composer.lock, applicables). Batch 29/05 : 7 CVE sur symfony/ux-* (UX absent du composer.lock, non applicables). Détail en §3 |
 | Packagist Security Advisories | ✗ | 22/05/2026 | n/a | Page Packagist sans rendu HTML exploitable par WebFetch. À consulter via API https://packagist.org/api/security-advisories ou via Snyk/Dependabot qui consomment cette source |
-| MariaDB Security Releases | ✔ | 22/05/2026 | 11 CVE groupe 2026 listées (sans date individuelle) | Source exploitable via GitHub raw : https://raw.githubusercontent.com/mariadb-corporation/mariadb-docs/main/server/security/cve/community-server.md. Limite : le document ne contient pas de date par CVE, l'applicabilité dépend de la version MariaDB en production (information à confirmer en §2.2 du plan). Recommandation §7 : remplacer dans le plan l'URL `mariadb.org` par l'URL GitHub raw |
-| MSRC Security Update Guide (Patch Tuesday) | ✔ | 12/05/2026 | 68 CVE distinctes affectant Windows Server 2016/2019/2022/2025, dont 6 Critiques | Source exploitée via export CSV manuel `Security Updates 2026-05-22-105057am.csv` (déposé en racine `./wwwroot/`). Filtrage automatique : 6 RCE Critical + 62 Important EoP/DoS/InfoDisc. Détail en §3 du rapport |
+| MariaDB Security Releases | ✔ | 01/06/2026 | 9 CVE groupe 2026 listées (mise à jour entre 22 et 31/05) | Source GitHub raw : https://raw.githubusercontent.com/mariadb-corporation/mariadb-docs/main/server/security/cve/community-server.md. Changements depuis le 22/05 : ajout de 3 CVE (**CVE-2026-49261 CVSS 10.0**, CVE-2026-48165 et CVE-2026-48163 CVSS 8.0) correspondant à une nouvelle release (11.8.8/11.4.12/10.11.18/10.6.27). Retrait du document de 5 CVE plus anciennes (CVE-2026-21968, 3494, 32710, 34303, 35549) — à reclasser comme antérieures à mai 2026 |
+| MSRC Security Update Guide (Patch Tuesday) | ✔ | 12/05/2026 | 68 CVE distinctes affectant Windows Server 2016/2019/2022/2025, dont 6 Critiques | Source exploitée via export CSV manuel `Security Updates 2026-05-22-105057am.csv` (déposé en racine `./wwwroot/`). Patch Tuesday de mai = 12/05/2026, pas de nouvel export entre 22 et 31/05. Détail en §3 du rapport |
 | NEMA DICOM Standard Newsroom | ✔ | 22/05/2026 | 0 item sur la période | Pas d'actualité sécurité publiée entre le 01/05 et le 22/05/2026 |
 | Recherche NVD filtrée DICOM | ☐ | 22/05/2026 | n/a | Cadence trimestrielle au plan, prochaine consultation prévue fin Q2 2026 |
 | Three.js Security Advisories | ✔ | 22/05/2026 | 0 item | "There aren't any published security advisories" (page GitHub vide à la date de consultation) |
