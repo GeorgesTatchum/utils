@@ -34,110 +34,200 @@ Intégration des trois projets `saas_local/` (app, modulesjs, branch_hardening) 
 
 ---
 
-## 1. Créer les projets dans DependencyTrack
+## 1. Configuration DependencyTrack
 
-### 1.1 Via l'API
+### ✅ Projets créés automatiquement
 
-Script d'initialisation (à exécuter une fois) :
+Grâce au paramètre `autoCreate=true` dans les workflows, les projets sont **créés automatiquement** au premier upload du SBOM. Pas besoin de les créer manuellement ni de gérer les UUIDs!
 
-**File: `scripts/init-dependencytrack-projects.sh`**
-
-```bash
-#!/bin/bash
-
-set -e
-
-DT_URL="${DT_URL:-https://dependencytrack.oo-medical.local}"
-DT_API_KEY="${DT_API_KEY}"
-GITHUB_ORG="OneOrthoMedical"
-
-if [ -z "${DT_API_KEY}" ]; then
-  echo "Error: DT_API_KEY not set"
-  exit 1
-fi
-
-# Projets à créer
-declare -A PROJECTS=(
-  [app]="OO Medical SaaS Platform — Application backend"
-  [modulesjs]="OO Medical SaaS Platform — JavaScript modules library"
-  [branch_hardening]="OO Medical SaaS Platform — Security hardening rules"
-)
-
-for PROJECT_NAME in "${!PROJECTS[@]}"; do
-  PROJECT_DESC="${PROJECTS[$PROJECT_NAME]}"
-  REPO_URL="https://github.com/${GITHUB_ORG}/${PROJECT_NAME}"
-
-  echo "Creating project: ${PROJECT_NAME}..."
-
-  RESPONSE=$(curl -s -X POST "${DT_URL}/api/v1/project" \
-    -H "X-API-Key: ${DT_API_KEY}" \
-    -H "Content-Type: application/json" \
-    -d "{
-      \"name\": \"${PROJECT_NAME}\",
-      \"description\": \"${PROJECT_DESC}\",
-      \"version\": \"1.0.0\",
-      \"active\": true,
-      \"tags\": [
-        {\"name\": \"saas_local\"},
-        {\"name\": \"github\"},
-        {\"name\": \"production\"}
-      ]
-    }")
-
-  PROJECT_UUID=$(echo "${RESPONSE}" | jq -r '.uuid // empty')
-
-  if [ -z "${PROJECT_UUID}" ]; then
-    echo "❌ Failed to create project ${PROJECT_NAME}"
-    echo "Response: ${RESPONSE}"
-    exit 1
-  fi
-
-  echo "✅ Project created: ${PROJECT_NAME} (UUID: ${PROJECT_UUID})"
-
-  # Stocker UUID pour GitHub Actions
-  echo "${PROJECT_NAME}_UUID=${PROJECT_UUID}" >> /tmp/dt-projects.env
-done
-
-echo ""
-echo "All projects created successfully"
-echo "Store these UUIDs in your GitHub repository secrets"
-```
-
-Exécution :
-
-```bash
-export DT_URL="https://dependencytrack.oo-medical.local"
-export DT_API_KEY="$(vault kv get -field=api_key secret/dependencytrack)"
-
-chmod +x scripts/init-dependencytrack-projects.sh
-./scripts/init-dependencytrack-projects.sh
-
-# Récupérer les UUIDs
-cat /tmp/dt-projects.env
-```
-
-### 1.2 Stocker les UUIDs dans les secrets GitHub
-
-Pour chaque projet (app, modulesjs, branch_hardening) :
-
-1. Aller à **Settings → Secrets and variables → Actions**
-2. Ajouter secrets :
-   - `DT_PROJECT_UUID` (UUID unique du projet)
-   - `DT_API_KEY` (clé API commune)
-   - `DT_URL` (URL de l'instance DependencyTrack)
-
-```bash
-# Exemple pour le projet 'app'
-gh secret set DT_PROJECT_UUID -b "12345678-1234-1234-1234-123456789012" -R OneOrthoMedical/app
-gh secret set DT_API_KEY -b "$(vault kv get -field=api_key secret/dependencytrack)" -R OneOrthoMedical/app
-gh secret set DT_URL -b "https://dependencytrack.oo-medical.local" -R OneOrthoMedical/app
-```
+**Noms des projets créés automatiquement:**
+- `one-plateform` (app) — sera créé avec versions (develop, master, preprod)
+- `modulesjs` — sera créé avec versions
+- `branch_hardening` — sera créé avec versions
 
 ---
 
-## 2. Générateurs SBOM par type de projet
+## 1.1 Secrets GitHub requis
 
-### 2.1 App (PHP Composer)
+**Accéder à DependencyTrack et créer manuellement :**
+
+1. Se connecter à https://dependencytrack.3d4you.org
+   - Login: `admin`
+   - Password: (changé lors du premier accès)
+
+2. Aller à **Administration → Projects**
+
+3. Cliquer sur **Create Project**
+
+4. Remplir les champs pour chaque projet:
+
+#### Projet 1: `app`
+
+```
+Name:        app
+Description: OO Medical SaaS Platform — Application backend
+Version:     1.0.0
+Active:      ✅ (coché)
+Tags:        saas_local, github, production
+```
+
+Cliquer **Create**
+
+#### Projet 2: `modulesjs`
+
+```
+Name:        modulesjs
+Description: OO Medical SaaS Platform — JavaScript modules library
+Version:     1.0.0
+Active:      ✅ (coché)
+Tags:        saas_local, github, production
+```
+
+Cliquer **Create**
+
+#### Projet 3: `branch_hardening`
+
+```
+Name:        branch_hardening
+Description: OO Medical SaaS Platform — Security hardening rules
+Version:     1.0.0
+Active:      ✅ (coché)
+Tags:        saas_local, github, production
+```
+
+Cliquer **Create**
+
+**Récupérer les UUIDs:**
+
+Pour chaque projet créé :
+
+1. Cliquer sur le projet
+2. Voir l'UUID dans l'URL ou dans le panneau d'infos
+3. Copier l'UUID (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+4. Stocker dans un fichier local:
+
+```bash
+# Exemple: /tmp/dt-projects.env
+app_UUID=12345678-1234-1234-1234-123456789012
+modulesjs_UUID=87654321-4321-4321-4321-210987654321
+branch_hardening_UUID=abcdefgh-ijkl-mnop-qrst-uvwxyzabcdef
+```
+
+### 1.2 Vérifier la création des projets
+
+Les projets sont créés automatiquement au premier upload du SBOM. Vérifier qu'ils apparaissent:
+
+```bash
+# Vérifier les projets dans DependencyTrack
+curl -s "https://dependencytrack.3d4you.org/api/v1/projects" \
+  -H "X-Api-Key: ${DT_API_KEY}" | jq '.[] | {name, version, uuid}'
+
+# Doit afficher:
+# {
+#   "name": "one-plateform",
+#   "version": "master",
+#   "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# }
+# {
+#   "name": "modulesjs",
+#   "version": "main",
+#   "uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+# }
+# etc.
+```
+
+**Chaque fois qu'on push une nouvelle version, une nouvelle version du projet est créée:**
+- Master branch → `isLatest=true`
+- Develop/preprod → `isLatest=false`
+- Manual trigger → version = commit SHA (12 chars)
+
+Seuls **2 secrets** sont nécessaires pour chaque repo:
+
+```bash
+# Pour chaque projet (app, modulesjs, branch_hardening)
+
+# Secret 1: URL de DependencyTrack
+gh secret set DT_URL -b "https://dependencytrack.3d4you.org" -R OneOrthoMedical/app
+
+# Secret 2: Clé API de DependencyTrack (récupérer depuis DependencyTrack UI ou Vault)
+gh secret set DT_API_KEY -b "odt_..." -R OneOrthoMedical/app
+
+# Répéter pour modulesjs et branch_hardening
+gh secret set DT_URL -b "https://dependencytrack.3d4you.org" -R OneOrthoMedical/modulesjs
+gh secret set DT_API_KEY -b "odt_..." -R OneOrthoMedical/modulesjs
+
+gh secret set DT_URL -b "https://dependencytrack.3d4you.org" -R OneOrthoMedical/branch_hardening
+gh secret set DT_API_KEY -b "odt_..." -R OneOrthoMedical/branch_hardening
+```
+
+**Avantages:**
+- ✅ Pas besoin de créer les projets avant (auto-création)
+- ✅ Pas besoin de gérer les UUIDs des projets
+- ✅ Nombre de secrets réduit (2 au lieu de 3)
+
+---
+
+## 2. Génération SBOM avec Syft
+
+**Approche unifiée:** Utiliser [Syft](https://github.com/anchore/syft) pour générer les SBOMs indépendamment de la stack technique (PHP Symfony, Node Angular, Dockerfiles, etc.).
+
+### Dépendances multi-stack (comme Snyk)
+
+Les workflows installent **toutes les dépendances** du projet avant de scanner avec Syft:
+
+| Stack | Installation | Détection | Exemple |
+|-------|---|---|---|
+| **PHP (Composer)** | `Setup PHP + composer install` | ✅ composer.lock | Symfony, Laravel |
+| **Node (npm)** | `Setup Node.js + npm ci` | ✅ package-lock.json | Angular, Vue, React |
+| **Dockerfiles** | Aucune (scan statique) | ✅ Dépendances de base | Alpine, Debian, Ubuntu |
+
+Résultat: Syft détecte **toutes les dépendances** exactement comme Snyk (Composer + npm + OS packages).
+
+### Versioning intelligent
+
+```bash
+if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+  PROJECT_VERSION="${GITHUB_SHA:0:12}"        # Manual: version = commit SHA (12 chars)
+  IS_LATEST="false"
+else
+  PROJECT_VERSION="${GITHUB_REF_NAME}"        # Auto: version = branch name (master/develop/preprod)
+  [ "${GITHUB_REF_NAME}" = "master" ] && IS_LATEST="true" || IS_LATEST="false"
+fi
+```
+
+**Résultat dans DependencyTrack:**
+- Branch `master` → version `master` avec `isLatest=true` (version principale)
+- Branch `develop` → version `develop` avec `isLatest=false`
+- Branch `preprod` → version `preprod` avec `isLatest=false`
+- Manual trigger → version `abc123def456` avec `isLatest=false` (commit SHA)
+
+### Méthode d'upload: multipart/form-data avec auto-création
+
+```bash
+curl -X POST "${DT_URL}/api/v1/bom" \
+  -H "X-Api-Key: ${DT_API_KEY}" \
+  -F "autoCreate=true" \
+  -F "projectName=one-plateform" \
+  -F "projectVersion=${VERSION}" \
+  -F "isLatest=${IS_LATEST}" \
+  -F "bom=@sbom.json"
+```
+
+**Avantages:**
+- ✅ Les projets sont créés automatiquement par `autoCreate=true`
+- ✅ Versioning intelligent (branch name ou commit SHA)
+- ✅ Marque la version `master` comme `isLatest=true`
+- ✅ Interface mise à jour immédiatement après l'upload
+
+Syft avantages:
+- ✅ Détecte automatiquement toutes les dépendances (Composer, npm, pip, etc.)
+- ✅ Format CycloneDX standardisé et compatible DependencyTrack
+- ✅ Même workflow pour tous les projets
+- ✅ Plus robuste que les outils spécifiques au langage
+
+---
+
+### 2.1 App (Symfony + PHP + Node)
 
 **File: `app/.github/workflows/dependencytrack.yml`**
 
@@ -145,211 +235,38 @@ gh secret set DT_URL -b "https://dependencytrack.oo-medical.local" -R OneOrthoMe
 name: DependencyTrack - SBOM Generation
 
 on:
+  # Lancement manuel
+  workflow_dispatch: ~
+
+  # Push sur branches protégées
   push:
     branches:
-      - main
+      - master
       - develop
+      - preprod
     paths:
       - 'composer.json'
       - 'composer.lock'
-  schedule:
-    - cron: '0 2 * * *'  # Daily 2 AM
-
-jobs:
-  generate-sbom:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          tools: composer:latest
-
-      - name: Cache composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
-
-      - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Install CycloneDX
-        run: |
-          composer require --dev cyclonedx/composer-plugin:latest || \
-          composer global require cyclonedx/composer-plugin:latest
-
-      - name: Generate CycloneDX SBOM
-        run: |
-          composer CycloneDX:make-sbom \
-            --output sbom.xml \
-            --format xml \
-            --spec-version 1.4 || \
-          cyclonedx composer . --output sbom.xml --spec 1.4
-
-      - name: Validate SBOM
-        run: |
-          curl -s https://raw.githubusercontent.com/CycloneDX/specification/master/schema/bom-1.4.xsd \
-            > /tmp/bom-1.4.xsd
-          
-          # Optionnel : valider avec xmllint
-          xmllint --noout --schema /tmp/bom-1.4.xsd sbom.xml || true
-          
-          # Vérifier qu'il n'est pas vide
-          [ -s sbom.xml ] && wc -l sbom.xml
-
-      - name: Upload SBOM to DependencyTrack
-        env:
-          DT_URL: ${{ secrets.DT_URL }}
-          DT_API_KEY: ${{ secrets.DT_API_KEY }}
-          DT_PROJECT_UUID: ${{ secrets.DT_PROJECT_UUID }}
-        run: |
-          curl -s -X POST "${DT_URL}/api/v1/bom" \
-            -H "X-API-Key: ${DT_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d @- <<EOF
-          {
-            "projectUuid": "${DT_PROJECT_UUID}",
-            "bom": "$(base64 -w 0 sbom.xml)"
-          }
-          EOF
-          
-          echo "✅ SBOM uploaded successfully"
-
-      - name: Post SBOM to pull request
-        if: github.event_name == 'push'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const sbom = fs.readFileSync('sbom.xml', 'utf8');
-            const lines = sbom.split('\n').length;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `📦 **SBOM Generated**\n\n- Format: CycloneDX 1.4\n- Components: ${lines - 10} (approx)\n- Uploaded to DependencyTrack\n\n[View in DependencyTrack](${process.env.DT_URL}/project/${process.env.DT_PROJECT_UUID})`
-            });
-```
-
-### 2.2 Modulesjs (Node/npm)
-
-**File: `modulesjs/.github/workflows/dependencytrack.yml`**
-
-```yaml
-name: DependencyTrack - SBOM Generation
-
-on:
-  push:
-    branches:
-      - main
-      - develop
-    paths:
       - 'package.json'
       - 'package-lock.json'
-  schedule:
-    - cron: '0 2 * * *'  # Daily 2 AM
+      - 'src/**'
+      - 'docker/**'
 
-jobs:
-  generate-sbom:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install CycloneDX CLI
-        run: npm install -g @cyclonedx/npm
-
-      - name: Generate CycloneDX SBOM
-        run: |
-          cyclonedx-npm \
-            --output-file sbom.json \
-            --output-format json \
-            --spec-version 1.4 \
-            --include-dev
-
-      - name: Validate SBOM
-        run: |
-          # Vérifier format JSON valide
-          jq '.' sbom.xml > /dev/null && echo "✅ Valid JSON"
-          
-          # Extraire composants
-          COMPONENT_COUNT=$(jq '.components | length' sbom.json)
-          echo "📦 Total components: ${COMPONENT_COUNT}"
-
-      - name: Upload SBOM to DependencyTrack
-        env:
-          DT_URL: ${{ secrets.DT_URL }}
-          DT_API_KEY: ${{ secrets.DT_API_KEY }}
-          DT_PROJECT_UUID: ${{ secrets.DT_PROJECT_UUID }}
-        run: |
-          # Encoder SBOM en base64
-          SBOM_B64=$(base64 -w 0 sbom.json)
-          
-          # Upload
-          curl -s -X POST "${DT_URL}/api/v1/bom" \
-            -H "X-API-Key: ${DT_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d @- <<EOF
-          {
-            "projectUuid": "${DT_PROJECT_UUID}",
-            "bom": "${SBOM_B64}"
-          }
-          EOF
-          
-          echo "✅ SBOM uploaded successfully"
-
-      - name: Check scan results
-        env:
-          DT_URL: ${{ secrets.DT_URL }}
-          DT_API_KEY: ${{ secrets.DT_API_KEY }}
-          DT_PROJECT_UUID: ${{ secrets.DT_PROJECT_UUID }}
-        run: |
-          # Attendre que le scan soit traité (max 60 secondes)
-          for i in {1..12}; do
-            VULNS=$(curl -s \
-              "${DT_URL}/api/v1/vulnerabilities" \
-              -H "X-API-Key: ${DT_API_KEY}" \
-              -H "Accept: application/json" \
-              | jq "[.[] | select(.project.uuid == \"${DT_PROJECT_UUID}\")] | length")
-            
-            if [ "${VULNS}" -gt 0 ]; then
-              echo "✅ Vulnerabilities detected: ${VULNS}"
-              break
-            fi
-            
-            sleep 5
-          done
-```
-
-### 2.3 Branch Hardening (Mixed — docs + rules)
-
-**File: `branch_hardening/.github/workflows/dependencytrack.yml`**
-
-```yaml
-name: DependencyTrack - SBOM Generation
-
-on:
-  push:
+  # Pull Request vers branches protégées
+  pull_request:
     branches:
-      - main
+      - master
+      - develop
+      - preprod
+    paths:
+      - 'composer.json'
+      - 'composer.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'docker/**'
+
+  # Scan quotidien (2 AM UTC)
   schedule:
     - cron: '0 2 * * *'
 
@@ -360,61 +277,405 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Install CycloneDX CLI
-        run: npm install -g @cyclonedx/cyclonedx-npm
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-      - name: Generate minimal SBOM
+      - name: Install Node dependencies
+        run: npm ci --legacy-peer-deps || npm ci
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:latest
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install Syft
         run: |
-          cat > sbom.json <<'EOF'
-          {
-            "bomFormat": "CycloneDX",
-            "specVersion": "1.4",
-            "serialNumber": "urn:uuid:$(uuidgen)",
-            "version": 1,
-            "metadata": {
-              "timestamp": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-              "tools": [
-                {
-                  "vendor": "OneOrtho",
-                  "name": "branch_hardening-generator",
-                  "version": "1.0.0"
-                }
-              ],
-              "component": {
-                "type": "application",
-                "name": "branch_hardening",
-                "version": "$(cat VERSION || echo '1.0.0')"
-              }
-            },
-            "components": [
-              {
-                "type": "library",
-                "name": "git-hardening-rules",
-                "version": "$(cat VERSION || echo '1.0.0')",
-                "description": "Git branch protection and enforcement rules"
-              }
-            ]
-          }
-          EOF
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft --version
+
+      - name: Generate SBOM with Syft (CycloneDX JSON format)
+        run: |
+          syft . \
+            --config .syft.yaml \
+            --output cyclonedx-json \
+            --file sbom.json
+
+          [ -s sbom.json ] && echo "✅ SBOM généré ($(wc -c < sbom.json) bytes, $(jq '.components | length' sbom.json) composants)"
+
+      - name: Validate SBOM
+        run: |
+          jq '.' sbom.json > /dev/null && echo "✅ JSON valide"
+          
+          COMPONENTS=$(jq '.components | length' sbom.json)
+          echo "📦 Composants détectés: ${COMPONENTS}"
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
 
       - name: Upload SBOM to DependencyTrack
         env:
           DT_URL: ${{ secrets.DT_URL }}
           DT_API_KEY: ${{ secrets.DT_API_KEY }}
-          DT_PROJECT_UUID: ${{ secrets.DT_PROJECT_UUID }}
+          DT_PROJECT_NAME: one-plateform
         run: |
-          SBOM_B64=$(base64 -w 0 sbom.json)
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            PROJECT_VERSION="${GITHUB_SHA:0:12}"
+            IS_LATEST="false"
+          else
+            PROJECT_VERSION="${GITHUB_REF_NAME}"
+            [ "${GITHUB_REF_NAME}" = "master" ] && IS_LATEST="true" || IS_LATEST="false"
+          fi
+
+          HTTP_CODE=$(curl -sS -w "%{http_code}" -o response.json \
+            -X POST "${DT_URL}/api/v1/bom" \
+            -H "X-Api-Key: ${DT_API_KEY}" \
+            -F "autoCreate=true" \
+            -F "projectName=${DT_PROJECT_NAME}" \
+            -F "projectVersion=${PROJECT_VERSION}" \
+            -F "isLatest=${IS_LATEST}" \
+            -F "bom=@sbom.json")
+
+          echo "✅ Upload BOM (version=${PROJECT_VERSION}, latest=${IS_LATEST}): HTTP ${HTTP_CODE}"
+          cat response.json; echo
+          [ "${HTTP_CODE}" = "200" ] || { echo "❌ Échec upload"; exit 1; }
+```
+
+### 2.2 Modulesjs (Angular/Node)
+
+**File: `modulesjs/.github/workflows/dependencytrack.yml`**
+
+```yaml
+name: DependencyTrack - SBOM Generation
+
+on:
+  # Lancement manuel
+  workflow_dispatch:
+
+  # Push sur branches protégées
+  push:
+    branches:
+      - main
+      - develop
+      - preprod
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+
+  # Pull Request vers branches protégées
+  pull_request:
+    branches:
+      - main
+      - develop
+      - preprod
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+
+  # Scan quotidien (2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js (for dependency resolution)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps || npm ci
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft --version
+
+      - name: Generate SBOM with Syft (CycloneDX JSON format)
+        run: |
+          syft . \
+            --config .syft.yaml \
+            --output cyclonedx-json \
+            --file sbom.json
           
+          [ -s sbom.json ] && echo "✅ SBOM généré ($(wc -c < sbom.json) bytes)"
+
+      - name: Validate SBOM
+        run: |
+          jq '.' sbom.json > /dev/null && echo "✅ JSON valide"
+          
+          COMPONENTS=$(jq '.components | length' sbom.json)
+          echo "📦 Composants détectés: ${COMPONENTS}"
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
+
+      - name: Upload SBOM to DependencyTrack
+        if: github.event_name == 'push'
+        env:
+          DT_URL: ${{ secrets.DT_URL }}
+          DT_API_KEY: ${{ secrets.DT_API_KEY }}
+        run: |
           curl -s -X POST "${DT_URL}/api/v1/bom" \
-            -H "X-API-Key: ${DT_API_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"projectUuid\": \"${DT_PROJECT_UUID}\",
-              \"bom\": \"${SBOM_B64}\"
-            }"
+            -H "X-Api-Key: ${DT_API_KEY}" \
+            -F "autoCreate=true" \
+            -F "projectName=modulesjs" \
+            -F "projectVersion=$(git describe --tags --always 2>/dev/null || echo '1.0.0')" \
+            -F "bom=@sbom.json"
           
-          echo "✅ SBOM uploaded"
+          echo "✅ SBOM uploadé vers DependencyTrack"
+```
+
+### 2.3 Branch Hardening (Règles + Documentation)
+
+**File: `branch_hardening/.github/workflows/dependencytrack.yml`**
+
+```yaml
+name: DependencyTrack - SBOM Generation
+
+on:
+  # Lancement manuel
+  workflow_dispatch:
+
+  # Push sur branches protégées
+  push:
+    branches:
+      - main
+      - develop
+      - preprod
+
+  # Pull Request vers branches protégées
+  pull_request:
+    branches:
+      - main
+      - develop
+      - preprod
+
+  # Scan quotidien (2 AM UTC)
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Syft
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          syft --version
+
+      - name: Generate SBOM with Syft (CycloneDX JSON format)
+        run: |
+          syft . \
+            --config .syft.yaml \
+            --output cyclonedx-json \
+            --file sbom.json
+          
+          [ -s sbom.json ] && echo "✅ SBOM généré ($(wc -c < sbom.json) bytes)"
+
+      - name: Enhance SBOM metadata
+        run: |
+          VERSION=$(cat VERSION 2>/dev/null || git describe --tags --always 2>/dev/null || echo "1.0.0")
+          
+          jq --arg version "$VERSION" '.metadata.component.version = $version' sbom.json > sbom.tmp && mv sbom.tmp sbom.json
+          jq '.metadata.component.name = "branch_hardening" | .metadata.component.description = "Git branch protection and security hardening rules"' sbom.json > sbom.tmp && mv sbom.tmp sbom.json
+          
+          echo "✅ Métadonnées enrichies"
+
+      - name: Validate SBOM
+        run: |
+          jq '.' sbom.json > /dev/null && echo "✅ JSON valide"
+          
+          COMPONENTS=$(jq '.components | length' sbom.json)
+          echo "📦 Composants détectés: ${COMPONENTS}"
+
+      - name: Upload SBOM as workflow artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sbom
+          path: sbom.json
+          retention-days: 30
+
+      - name: Upload SBOM to DependencyTrack
+        if: github.event_name == 'push'
+        env:
+          DT_URL: ${{ secrets.DT_URL }}
+          DT_API_KEY: ${{ secrets.DT_API_KEY }}
+        run: |
+          curl -s -X POST "${DT_URL}/api/v1/bom" \
+            -H "X-Api-Key: ${DT_API_KEY}" \
+            -F "autoCreate=true" \
+            -F "projectName=branch_hardening" \
+            -F "projectVersion=$(cat VERSION 2>/dev/null || git describe --tags --always 2>/dev/null || echo '1.0.0')" \
+            -F "bom=@sbom.json"
+          
+          echo "✅ SBOM uploadé vers DependencyTrack"
+```
+
+---
+
+## 2.4 Configuration Syft par projet (`.syft.yaml`)
+
+Créer un fichier `.syft.yaml` **à la racine de chaque repo** pour personnaliser le scan Syft.
+
+### App (Symfony + PHP)
+
+**File: `app/.syft.yaml`**
+
+```yaml
+log:
+  level: "warn"
+  quiet: false
+
+format:
+  json:
+    pretty: true
+  
+  cyclonedx-json:
+    pretty: true
+
+# Scan le répertoire source complet
+source:
+  base-path: "."
+
+# Configuration PHP/Composer
+package:
+  search-indexed-archives: true
+  exclude-binary-overlap-by-ownership: true
+
+# Inclure les fichiers possédés par les packages
+relationships:
+  package-file-ownership: true
+  package-file-ownership-overlap: true
+
+# Respect des licences
+license:
+  content: "none"
+  coverage: 75
+
+# Exclusions
+exclude:
+  - "node_modules/**"
+  - ".git/**"
+  - "tests/**"
+  - "var/**"
+```
+
+### Modulesjs (Angular + Node)
+
+**File: `modulesjs/.syft.yaml`**
+
+```yaml
+log:
+  level: "warn"
+  quiet: false
+
+format:
+  json:
+    pretty: true
+  
+  cyclonedx-json:
+    pretty: true
+
+source:
+  base-path: "."
+
+package:
+  search-indexed-archives: true
+  exclude-binary-overlap-by-ownership: true
+
+# Inclure les dépendances développement pour Angular
+javascript:
+  search-remote-licenses: false
+  npm-base-url: "https://registry.npmjs.org"
+  include-dev-dependencies: true
+
+relationships:
+  package-file-ownership: true
+  package-file-ownership-overlap: true
+
+license:
+  content: "none"
+  coverage: 75
+
+exclude:
+  - ".git/**"
+  - "dist/**"
+  - "coverage/**"
+  - ".angular/**"
+```
+
+### Branch Hardening (Règles + Docs)
+
+**File: `branch_hardening/.syft.yaml`**
+
+```yaml
+log:
+  level: "warn"
+  quiet: false
+
+format:
+  json:
+    pretty: true
+  
+  cyclonedx-json:
+    pretty: true
+
+source:
+  base-path: "."
+  name: "branch_hardening"
+  supplier: "OneOrtho Medical"
+
+package:
+  search-indexed-archives: true
+  exclude-binary-overlap-by-ownership: true
+
+relationships:
+  package-file-ownership: false
+
+license:
+  content: "none"
+
+exclude:
+  - ".git/**"
+  - ".github/**"
 ```
 
 ---
@@ -429,6 +690,7 @@ saas_local/
 │   ├── .github/
 │   │   └── workflows/
 │   │       └── dependencytrack.yml          ← Workflow SBOM
+│   ├── .syft.yaml                           ← Config Syft (racine du repo)
 │   ├── composer.json                        ← Dépendances PHP
 │   ├── composer.lock
 │   └── [code application]
@@ -437,16 +699,18 @@ saas_local/
 │   ├── .github/
 │   │   └── workflows/
 │   │       └── dependencytrack.yml          ← Workflow SBOM
+│   ├── .syft.yaml                           ← Config Syft (racine du repo)
 │   ├── package.json                         ← Dépendances Node
 │   ├── package-lock.json
-│   └── [code modules]
+│   └── [code modules Angular]
 │
 └── branch_hardening/
     ├── .github/
     │   └── workflows/
     │       └── dependencytrack.yml          ← Workflow SBOM
+    ├── .syft.yaml                           ← Config Syft (racine du repo)
     ├── VERSION                              ← Pour tracking versions
-    └── [règles Git]
+    └── [règles Git + docs]
 ```
 
 ### 3.2 Configuration GitHub à ajouter
@@ -455,7 +719,7 @@ Pour chaque dépôt :
 
 ```bash
 # 1. Créer les secrets
-gh secret set DT_URL -b "https://dependencytrack.oo-medical.local" \
+gh secret set DT_URL -b "https://dependencytrack.3d4you.org" \
   -R OneOrthoMedical/app
 
 gh secret set DT_API_KEY -b "$(vault kv get -field=api_key secret/dependencytrack)" \
@@ -505,7 +769,48 @@ Les workflows se déclenchent sur :
 3. **Schedule quotidienne** (2 AM UTC)
 4. **Pull Requests** (optionnel — voir section 5.3)
 
-### 5.2 Logs et monitoring
+### 5.2 Lancer les workflows manuellement
+
+**Via GitHub UI:**
+
+1. Aller sur le repo (e.g., `OneOrthoMedical/app`)
+2. **Actions** → sélectionner `DependencyTrack - SBOM Generation`
+3. Cliquer **Run workflow**
+4. Sélectionner la branche (main, develop, ou preprod)
+5. Cliquer **Run workflow**
+
+**Via CLI (gh):**
+
+```bash
+# Lancer le workflow pour le projet 'app' sur la branche 'main'
+gh workflow run dependencytrack.yml \
+  -R OneOrthoMedical/app \
+  --ref main
+
+# Lancer sur develop
+gh workflow run dependencytrack.yml \
+  -R OneOrthoMedical/app \
+  --ref develop
+
+# Lancer tous les workflows des 3 projets
+for REPO in app modulesjs branch_hardening; do
+  gh workflow run dependencytrack.yml -R OneOrthoMedical/$REPO
+done
+```
+
+**Vérifier l'exécution:**
+
+```bash
+# Afficher le dernier run
+gh run list -R OneOrthoMedical/app --workflow=dependencytrack.yml -L 1
+
+# Attendre la fin et afficher les logs
+gh run watch -R OneOrthoMedical/app --interval=5
+```
+
+---
+
+### 5.3 Logs et monitoring
 
 Afficher les exécutions :
 
@@ -520,7 +825,7 @@ gh run view -R OneOrthoMedical/app [run-id] --log
 gh run watch -R OneOrthoMedical/app --interval=5
 ```
 
-### 5.3 Intégration PR (optionnel)
+### 5.4 Intégration PR avancée (optionnel)
 
 Ajouter vérification SBOM sur les PRs :
 
@@ -561,7 +866,7 @@ Ajouter des tags pour faciliter le filtering :
 
 ```bash
 # Via l'API
-curl -X PATCH "https://dependencytrack.oo-medical.local/api/v1/project/${UUID}" \
+curl -X PATCH "https://dependencytrack.3d4you.org/api/v1/project/${UUID}" \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -589,18 +894,116 @@ git tag -a v2.3.1 -m "Release 2.3.1 — Dependency updates"
 
 ---
 
-## 7. Troubleshooting
+## 7. Accès aux artefacts SBOM
 
-### Issue : SBOM non uploadé
+Les SBOM générés sont automatiquement uploadés comme artefacts GitHub Actions et conservés **30 jours**.
+
+### Récupérer les SBOM
+
+**Via UI GitHub:**
+
+1. Aller sur le repo (e.g., `OneOrthoMedical/app`)
+2. **Actions** → sélectionner le workflow run
+3. **Artifacts** → télécharger `sbom.json`
+
+**Via CLI:**
 
 ```bash
-# Vérifier que DT_API_KEY est correct
-curl -s "https://dependencytrack.oo-medical.local/api/v1/version" \
-  -H "X-API-Key: ${DT_API_KEY}"
+# Lister les artifacts d'un run
+gh run view [run-id] -R OneOrthoMedical/app
 
-# Vérifier que DT_PROJECT_UUID existe
-curl -s "https://dependencytrack.oo-medical.local/api/v1/project/${DT_PROJECT_UUID}" \
-  -H "X-API-Key: ${DT_API_KEY}"
+# Télécharger l'artifact SBOM
+gh run download [run-id] -R OneOrthoMedical/app -n sbom
+
+# Archiver les SBOM localement
+mkdir -p sbom-archive
+cd sbom-archive
+gh run download [run-id] -R OneOrthoMedical/app -n sbom
+mv sbom/sbom.json sbom-$(date +%Y%m%d-%H%M%S).json
+```
+
+### Archivage long-terme
+
+Pour conserver les SBOM au-delà de 30 jours:
+
+```bash
+# Script d'archivage (à exécuter régulièrement)
+#!/bin/bash
+PROJECTS=("app" "modulesjs" "branch_hardening")
+
+for PROJ in "${PROJECTS[@]}"; do
+  mkdir -p sbom-archive/$PROJ
+  
+  # Récupérer les 10 derniers runs
+  gh run list -R OneOrthoMedical/$PROJ \
+    --workflow=dependencytrack.yml \
+    -L 10 --json databaseId \
+    | jq -r '.[].databaseId' | while read RUN_ID; do
+    
+    gh run download $RUN_ID -R OneOrthoMedical/$PROJ -n sbom 2>/dev/null && \
+    mv sbom/sbom.json sbom-archive/$PROJ/sbom-$RUN_ID.json && \
+    rm -rf sbom
+  done
+done
+
+# Compresser l'archive
+tar czf sbom-archive-$(date +%Y%m%d).tar.gz sbom-archive/
+```
+
+---
+
+## 8. Troubleshooting
+
+### Test local : Upload manuel d'un SBOM
+
+Pour tester rapidement l'upload avant de commiter le workflow:
+
+```bash
+# 1. Générer le SBOM localement
+syft . \
+  --config .syft.yaml \
+  --output cyclonedx-json \
+  --file sbom.json
+
+# 2. Upload multipart (méthode qui fonctionne)
+curl -X POST "https://dependencytrack.3d4you.org/api/v1/bom" \
+  -H "X-Api-Key: ${DT_API_KEY}" \
+  -F "autoCreate=true" \
+  -F "projectName=test-local" \
+  -F "projectVersion=1.0.0" \
+  -F "bom=@sbom.json"
+
+# 3. Vérifier dans l'interface
+# https://dependencytrack.3d4you.org/projects
+# Le projet 'test-local' devrait apparaître avec les composants
+```
+
+### Issue : SBOM non uploadé ou interface ne se met pas à jour
+
+**Raison principale:** Utilisation de l'API JSON au lieu de multipart/form-data
+
+```bash
+# ❌ Ne fonctionne PAS (ancien format)
+curl -X POST "${DT_URL}/api/v1/bom" \
+  -H "X-Api-Key: ${DT_API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"projectUuid": "...", "bom": "base64..."}'
+
+# ✅ Fonctionne (format utilisé par les workflows)
+curl -X POST "${DT_URL}/api/v1/bom" \
+  -H "X-Api-Key: ${DT_API_KEY}" \
+  -F "autoCreate=true" \
+  -F "projectName=app" \
+  -F "projectVersion=1.0.0" \
+  -F "bom=@sbom.json"
+```
+
+**Vérifier la clé API:**
+
+```bash
+curl -s "https://dependencytrack.3d4you.org/api/v1/version" \
+  -H "X-Api-Key: ${DT_API_KEY}"
+# Doit retourner: {"version":"4.14.2"}
 ```
 
 ### Issue : Composants non détectés
@@ -628,28 +1031,72 @@ gh run view [run-id] -R OneOrthoMedical/app --log
 gh run rerun [run-id] -R OneOrthoMedical/app
 ```
 
+### Issue : Upload vers DependencyTrack échoue sur les PRs
+
+**Raison:** Les secrets GitHub ne sont pas disponibles dans les PRs par défaut (pour sécurité).
+
+**Comportement attendu:**
+- ✅ SBOM généré et uploadé en artefact (visible dans le workflow)
+- ❌ SBOM NON uploadé vers DependencyTrack (secrets indisponibles)
+
+**Solution 1: Ignorer les PRs (recommandé)**
+
+Modifier le workflow pour uploader seulement sur push:
+
+```yaml
+- name: Upload SBOM to DependencyTrack
+  if: github.event_name == 'push'
+  env:
+    DT_URL: ${{ secrets.DT_URL }}
+    DT_API_KEY: ${{ secrets.DT_API_KEY }}
+    DT_PROJECT_UUID: ${{ secrets.DT_PROJECT_UUID }}
+  run: |
+    curl -s -X POST "${DT_URL}/api/v1/bom" ...
+```
+
+**Solution 2: Autoriser les secrets dans les PRs**
+
+⚠️ À utiliser avec prudence (risque de fuite de secrets)
+
+Repo Settings → Actions → General → Workflow permissions → ✅ Allow GitHub Actions to create and approve pull requests
+
 ---
 
-## 8. Checklist d'intégration
+## 9. Checklist d'intégration
 
-- [ ] Projets créés dans DependencyTrack via init script
-- [ ] UUIDs stockés en secrets GitHub pour chaque dépôt
-- [ ] DT_URL et DT_API_KEY configurés en GitHub secrets (organization level)
-- [ ] Workflows SBOM committés et poussés sur chaque dépôt
-- [ ] Premier run manuel déclenché (`gh workflow run dependencytrack.yml`)
-- [ ] SBOM reçu et traité dans DependencyTrack
-- [ ] Webhooks Slack actifs et testés
+**Phase 1: Setup**
+- [ ] `.syft.yaml` créé à la racine de chaque repo (app, modulesjs, branch_hardening)
+- [ ] Workflows `.github/workflows/dependencytrack.yml` committés dans chaque repo
+  - [ ] App: installe Node.js + PHP + composer + npm ci
+  - [ ] Modulesjs: installe Node.js + npm ci
+  - [ ] Branch_hardening: scan des règles uniquement
+- [ ] Secrets GitHub configurés par repo:
+  - [ ] `DT_URL` = https://dependencytrack.3d4you.org
+  - [ ] `DT_API_KEY` (depuis Vault ou DependencyTrack UI)
+
+**Phase 2: Déploiement**
+- [ ] Premier run manuel déclenché (`gh workflow run dependencytrack.yml -R OneOrthoMedical/app`)
+- [ ] Vérifier création automatique des projets dans DependencyTrack (Administration → Projects):
+  - [ ] `one-plateform` (app, versions: master/develop/preprod)
+  - [ ] `modulesjs` (versions: main/develop/preprod)
+  - [ ] `branch_hardening`
+- [ ] SBOM générés avec tous les composants (Composer + npm)
+- [ ] Interface mise à jour avec composants détectés
+- [ ] HTTP 200 confirmation sur l'upload
+
+**Phase 3: Monitoring**
+- [ ] Webhooks Slack actifs et testés (voir 02-slack-alerts-strategy.md)
 - [ ] Tags appliqués aux projets (saas_local, github, production)
-- [ ] Branches main/develop protégées (require status check)
-- [ ] Documentation mise à jour dans CODEOWNERS
-- [ ] Tests de failover et rollback documentés
+- [ ] Vérification: `isLatest=true` uniquement pour master
+- [ ] Artefacts SBOM accessibles sur GitHub (30 jours)
 
 ---
 
-## 9. Références
+## 10. Références
 
+- [Syft GitHub](https://github.com/anchore/syft) — SBOM generator
+- [Syft Configuration](https://github.com/anchore/syft#configuration) — .syft.yaml options
 - [CycloneDX Spec 1.4](https://cyclonedx.org/docs/1.4/)
-- [CycloneDX Composer Plugin](https://github.com/CycloneDX/cyclonedx-composer-plugin)
-- [CycloneDX npm](https://github.com/CycloneDX/cyclonedx-npm)
 - [DependencyTrack API Docs](https://docs.dependencytrack.org/api/)
+- [GitHub Actions Artifacts](https://docs.github.com/en/actions/managing-workflow-runs/downloading-workflow-artifacts)
 - [GitHub Actions Secrets](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions)

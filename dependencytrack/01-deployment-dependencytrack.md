@@ -151,197 +151,252 @@ cd /opt/dependencytrack
 
 **Note:** Le dossier `nginx/` n'est pas nécessaire si Nginx est déjà configuré via `/etc/nginx/sites-available/`
 
-### 4.3 Certificats SSL — Approche optimisée
+### 4.3 Certificats SSL — Approche pragmatique
 
-**Si Nginx tourne déjà sur ports 80/443 (avec SonarQube ou autre):**
+**Recommandation:** Auto-signé d'abord (rapide, pour déployer), Let's Encrypt après (une fois DependencyTrack opérationnel)
 
-#### Option A: Auto-signé temporaire (PLUS SIMPLE, recommandé)
+#### Phase 1: Auto-signé pour démarrer (IMMÉDIAT)
 
 ```bash
-# Générer un certificat auto-signé pour démarrer
+# Créer répertoire SSL
 mkdir -p /opt/dependencytrack/ssl
 cd /opt/dependencytrack/ssl
 
+# Générer certificat auto-signé (30 secondes)
 openssl req -x509 -newkey rsa:4096 \
   -keyout key.pem -out cert.pem -days 365 -nodes \
-  -subj "/C=FR/ST=Paris/L=Paris/O=OneOrtho/CN=dependencytrack.oo-medical.local"
+  -subj "/C=FR/ST=Paris/L=Paris/O=3D4You/CN=dependencytrack.3d4you.org"
 
 chmod 644 cert.pem key.pem
 ```
 
-**Avantages:** Rapide (30 sec), pas de dépendance, juste pour tester
-**Inconvénient:** Navigateur montre warning SSL (normal)
+**Avantages:** ✅ Rapide (30 sec), aucune dépendance externe, déploie immédiatement
 
----
+**Inconvénient:** ⚠️ Navigateur affiche warning SSL (normal, temporaire)
 
-#### Option B: Let's Encrypt via webroot (après Nginx configuré)
+#### Phase 2: Let's Encrypt APRÈS déploiement (optionnel, meilleur long-terme)
 
-Si vous avez déjà Let's Encrypt/Certbot:
+Une fois DependencyTrack déployé et fonctionnel (section 5 complète):
 
 ```bash
-# 1. D'abord configurer le vhost Nginx (voir section 4.4)
+# 1. Générer certificat Let's Encrypt via Nginx (meilleur que webroot)
+sudo certbot certonly --nginx \
+  -d dependencytrack.3d4you.org \
+  --agree-tos -m security@3d4you.org
 
-# 2. Générer Let's Encrypt via webroot (pas --standalone)
-sudo certbot certonly --webroot \
-  -w /var/www/html \
-  -d dependencytrack.oo-medical.local \
-  --agree-tos -m security@oo-medical.local
-
-# 3. Copier les certificats
-sudo cp /etc/letsencrypt/live/dependencytrack.oo-medical.local/fullchain.pem \
-  /opt/dependencytrack/ssl/cert.pem
-sudo cp /etc/letsencrypt/live/dependencytrack.oo-medical.local/privkey.pem \
-  /opt/dependencytrack/ssl/key.pem
-sudo chown $USER:$USER /opt/dependencytrack/ssl/*.pem
+# 2. Mettre à jour la config Nginx pour pointer vers Let's Encrypt (voir section 5.4)
 ```
 
-**Avantage:** Certificat valide, pas de warning SSL
-**Pré-requis:** Nginx vhost déjà configuré et actif
+**Avantages:** ✅ Certificat valide, renouvellement automatique
 
----
+**Quand:** Après que DependencyTrack soit opérationnel (section 5.4)
 
-**⚠️ IMPORTANT:** Ne pas utiliser `--standalone` si Nginx tourne déjà (ports 80/443 en utilisation)
+### 4.4 Configurer Nginx — Config avec auto-signé (Phase 1)
 
-### 4.4 Configurer Nginx — Ajouter vhost DependencyTrack
+**Créer la config DependencyTrack basée sur vos configs existantes (sonar.conf/cicd.conf)**
 
-**Situation:** Nginx tourne déjà (SonarQube, autres services)
-
-**Solution:** Ajouter un vhost séparé pour DependencyTrack
-
----
-
-**File: `/etc/nginx/sites-available/dependencytrack`**
+**File: `/etc/nginx/sites-available/dependencytrack.conf`**
 
 ```nginx
-upstream dt_frontend {
-    server 127.0.0.1:8080;
+# DependencyTrack proxy configuration
+upstream dependencytrack_frontend {
+  server 127.0.0.1:8080;
+  keepalive 32;
 }
 
-upstream dt_api {
-    server 127.0.0.1:8081;
+upstream dependencytrack_api {
+  server 127.0.0.1:8081;
+  keepalive 32;
 }
 
-# Redirection HTTP → HTTPS
 server {
-    listen 80;
-    server_name dependencytrack.oo-medical.local;
-    return 301 https://$server_name$request_uri;
+  server_name dependencytrack.3d4you.org;
+  
+  location / {
+    proxy_pass http://dependencytrack_frontend;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    client_max_body_size 50m;
+  }
+
+  location /api/ {
+    rewrite ^/api/(.*)$ /$1 break;
+    proxy_pass http://dependencytrack_api;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto https;
+    client_max_body_size 50m;
+  }
+
+  listen 443 ssl;
+  # Phase 1: Auto-signé (pour démarrer rapidement)
+  ssl_certificate /opt/dependencytrack/ssl/cert.pem;
+  ssl_certificate_key /opt/dependencytrack/ssl/key.pem;
+  
+  # Phase 2: Let's Encrypt (à mettre à jour plus tard, voir section 5.4)
+  # ssl_certificate /etc/letsencrypt/live/dependencytrack.3d4you.org/fullchain.pem;
+  # ssl_certificate_key /etc/letsencrypt/live/dependencytrack.3d4you.org/privkey.pem;
+  # include /etc/letsencrypt/options-ssl-nginx.conf;
+  # ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_ciphers HIGH:!aNULL:!MD5;
 }
 
-# HTTPS avec SSL
 server {
-    listen 443 ssl http2;
-    server_name dependencytrack.oo-medical.local;
-
-    # Certificats SSL
-    # Option A: Auto-signé (temporaire, rapide)
-    ssl_certificate /opt/dependencytrack/ssl/cert.pem;
-    ssl_certificate_key /opt/dependencytrack/ssl/key.pem;
-    
-    # Option B: Let's Encrypt (après certbot)
-    # ssl_certificate /etc/letsencrypt/live/dependencytrack.oo-medical.local/fullchain.pem;
-    # ssl_certificate_key /etc/letsencrypt/live/dependencytrack.oo-medical.local/privkey.pem;
-
-    # Configuration SSL
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers on;
-
-    # Taille max upload (SBOM, fichiers)
-    client_max_body_size 50M;
-
-    # Logs
-    access_log /var/log/nginx/dependencytrack_access.log;
-    error_log /var/log/nginx/dependencytrack_error.log;
-
-    # Frontend (UI)
-    location / {
-        proxy_pass http://dt_frontend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # API Backend
-    location /api/ {
-        proxy_pass http://dt_api;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+  if ($host = dependencytrack.3d4you.org) {
+    return 301 https://$host$request_uri;
+  }
+  listen 80;
+  server_name dependencytrack.3d4you.org;
+  return 404;
 }
 ```
 
-**Activation du vhost:**
+---
+
+#### Étape 3: Déployer la config (1 minute)
 
 ```bash
 # 1. Copier la config
-sudo cp /etc/nginx/sites-available/dependencytrack /etc/nginx/sites-available/
+sudo cp /etc/nginx/sites-available/dependencytrack.conf \
+  /etc/nginx/sites-available/
 
 # 2. Activer le vhost
-sudo ln -s /etc/nginx/sites-available/dependencytrack \
-  /etc/nginx/sites-enabled/dependencytrack
+sudo ln -s /etc/nginx/sites-available/dependencytrack.conf \
+  /etc/nginx/sites-enabled/
+
+# sudo sed -i '/ssl_protocols TLSv1.2 TLSv1.3;/d' /etc/nginx/sites-available/dependencytrack.conf
+# sudo sed -i '/ssl_ciphers HIGH:!aNULL:!MD5;/d' /etc/nginx/sites-available/dependencytrack.conf
 
 # 3. Tester la config
 sudo nginx -t
 # Doit afficher: nginx: configuration file test is successful
 
-# 4. Recharger Nginx (sans restart, applique à chaud)
+# 4. Recharger Nginx (sans restart)
 sudo systemctl reload nginx
 
-# 5. Vérifier le vhost est actif
-sudo systemctl is-active nginx
+# 5. Vérifier le vhost
+curl https://dependencytrack.3d4you.org
+# (DependencyTrack pas encore lancé, erreur attendue)
 ```
 
-**Vérification:**
+---
+
+#### Étape 4: Générer le certificat Let's Encrypt (si pas déjà fait)
+
+Puisque vous utilisez déjà Certbot:
 
 ```bash
-# Vérifier les vhosts actifs
-sudo nginx -T | grep -A 5 "dependencytrack"
+# Générer le certificat pour votre domaine
+sudo certbot certonly --webroot \
+  -w /var/www/html \
+  -d dependencytrack.3d4you.org \
+  --agree-tos -m security@3d4you.org
 
-# Tester la résolution DNS
-nslookup dependencytrack.oo-medical.local
-# (ou si nom d'hôte local)
-curl -k https://dependencytrack.oo-medical.local/
+# Certbot crée:
+# /etc/letsencrypt/live/dependencytrack.3d4you.org/fullchain.pem
+# /etc/letsencrypt/live/dependencytrack.3d4you.org/privkey.pem
+# (la config Nginx pointe déjà dessus)
+
+# Recharger Nginx pour activer le certificat
+sudo systemctl reload nginx
 ```
+
+---
+
+**Résultat:**
+
+```
+✅ cicd.3d4you.org           → Jenkins
+✅ quality.3d4you.org        → SonarQube  
+✅ dependencytrack.3d4you.org → DependencyTrack (NOUVEAU)
+```
+
+Tous coexistent sur les mêmes ports 80/443, Nginx route par le header `Host:`
 
 ---
 
 **⚠️ Notes:**
 
-- Le vhost coexiste avec les autres (SonarQube, etc.) sur les mêmes ports 80/443
-- Nginx route automatiquement par le header `Host:`
-- Certificats auto-signés → navigateur affiche warning (normal, ignorer pour test)
-- Let's Encrypt → certificat valide après certbot (pas de warning)
+- **Auto-signé:** Pas besoin de certificat pour tester (voir 4.3 Option A)
+- **Let's Encrypt:** Utilisez `--webroot` (pas `--standalone`, ports en usage)
+- **Coexistence:** Multiples vhosts = aucun conflit, à condition que les domaines soient différents
+- **Keepalive:** Inclus pour performance (comme dans vos configs existantes)
 
 ---
 
-## 4.5 Résumé des étapes 4.1-4.4
+## 4.5 Résumé des étapes 4.1-4.4 (Quick recap)
 
 ```bash
-# 4.1 Dépendances système
-sudo apt install -y docker.io docker-compose
-
-# 4.2 Répertoires
+# 4.2 Créer répertoires
 sudo mkdir -p /opt/dependencytrack/{ssl,backups,scripts}
 sudo chown -R $USER:$USER /opt/dependencytrack
 
-# 4.3 Certificats SSL (option A: auto-signé = rapide)
+# 4.3 Certificats SSL - Option A: Auto-signé (RAPIDE, 30 sec)
 cd /opt/dependencytrack/ssl
 openssl req -x509 -newkey rsa:4096 \
   -keyout key.pem -out cert.pem -days 365 -nodes \
-  -subj "/C=FR/ST=Paris/L=Paris/O=OneOrtho/CN=dependencytrack.oo-medical.local"
+  -subj "/C=FR/ST=Paris/L=Paris/O=3D4You/CN=dependencytrack.3d4you.org"
 
-# 4.4 Nginx vhost
-sudo cp /etc/nginx/sites-available/dependencytrack /etc/nginx/sites-available/
-sudo ln -s /etc/nginx/sites-available/dependencytrack /etc/nginx/sites-enabled/
+# 4.3 - Option B: Let's Encrypt (si domaine déjà réservé)
+sudo certbot certonly --webroot -w /var/www/html \
+  -d dependencytrack.3d4you.org --agree-tos -m security@3d4you.org
+
+# 4.4 Nginx vhost - Copier et adapter une config existante
+sudo cp /etc/nginx/sites-available/sonar.conf \
+  /etc/nginx/sites-available/dependencytrack.conf
+# Éditer et adapter les ports/domaine (voir section 4.4)
+
+sudo ln -s /etc/nginx/sites-available/dependencytrack.conf \
+  /etc/nginx/sites-enabled/
+
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-**Durée:** ~5 minutes
-**Résultat:** Infrastructure prête pour Docker Compose
+**Durée:** ~3 minutes (copy-paste + adaptations mineures)
+**Résultat:** 
+- ✅ Répertoires prêts
+- ✅ Certificats en place
+- ✅ Nginx vhost actif
+- ✅ DependencyTrack prêt pour Docker Compose
+
+---
+
+### 4.5 Résumé sections 4.1-4.4 (Quick recap)
+
+```bash
+# 4.2 Créer répertoires
+sudo mkdir -p /opt/dependencytrack/{ssl,backups,scripts}
+sudo chown -R $USER:$USER /opt/dependencytrack
+
+# 4.3 Phase 1: Certificats SSL auto-signé (30 sec)
+cd /opt/dependencytrack/ssl
+openssl req -x509 -newkey rsa:4096 \
+  -keyout key.pem -out cert.pem -days 365 -nodes \
+  -subj "/C=FR/ST=Paris/L=Paris/O=3D4You/CN=dependencytrack.3d4you.org"
+chmod 644 *.pem
+
+# 4.4 Nginx vhost - Créer la config avec auto-signé
+sudo cat > /etc/nginx/sites-available/dependencytrack.conf <<'EOF'
+[Copier la config de section 4.4 ici]
+EOF
+
+sudo ln -s /etc/nginx/sites-available/dependencytrack.conf \
+  /etc/nginx/sites-enabled/
+
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**Durée Phase 1:** ~5 minutes
+**Résultat:** 
+- ✅ Répertoires prêts
+- ✅ Certificats auto-signés en place
+- ✅ Nginx vhost actif et pointant vers auto-signé
+- ⚠️ Navigateur affiche warning SSL (normal, temporaire)
 
 ---
 
@@ -485,6 +540,37 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ALTER SYSTEM SET max_connections = 200;
 ALTER SYSTEM SET shared_buffers = '256MB';
 ```
+
+---
+
+### 5.4 Phase 2: Passer d'auto-signé à Let's Encrypt (optionnel, après déploiement)
+
+**Quand:** Une fois DependencyTrack déployé et opérationnel (après section 7)
+
+```bash
+# 1. Générer certificat Let's Encrypt via Nginx
+sudo certbot certonly --nginx \
+  -d dependencytrack.3d4you.org \
+  --agree-tos -m security@3d4you.org
+
+# 2. Certbot crée les certificats:
+# /etc/letsencrypt/live/dependencytrack.3d4you.org/fullchain.pem
+# /etc/letsencrypt/live/dependencytrack.3d4you.org/privkey.pem
+
+# 3. Mettre à jour /etc/nginx/sites-available/dependencytrack.conf
+# Décommenter les lignes Let's Encrypt et commenter les auto-signé
+
+sudo nano /etc/nginx/sites-available/dependencytrack.conf
+
+# 4. Tester et recharger
+sudo nginx -t
+sudo systemctl reload nginx
+
+# 5. Vérifier (pas de warning SSL)
+curl https://dependencytrack.3d4you.org
+```
+
+**Résultat:** ✅ Certificat valide, renouvellement automatique par Certbot
 
 ---
 
