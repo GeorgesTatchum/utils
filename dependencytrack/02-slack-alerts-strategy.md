@@ -77,15 +77,129 @@ ON_CALL_ID="S03DEF456UVW"
 
 ---
 
-## Payloads Slack
+## Payloads Slack (Templates Freemarker)
 
-### 1. Alerte CRITICAL (CVSS >= 9.0)
+### ⚠️ IMPORTANT: Syntaxe Freemarker vs JSON
+
+DependencyTrack utilise **Freemarker** (pas JSON simple) pour les templates. La syntaxe est:
+```
+{{ variable }}                    ← Freemarker (pas ${variable})
+{% if condition %} ... {% endif %} ← Conditions Freemarker
+```
+
+### Comment DependencyTrack filtre par sévérité?
+
+**PAS dans le template, mais dans les ALERTS!**
+
+Flux correct:
+1. **Alert CRITICAL** (Administration → Alerts)
+   - Condition: `CVSS >= 9.0` ← Filtre par sévérité
+   - Template: "Slack CRITICAL" ← Détermine l'apparence
+   - Publisher: Slack
+
+2. **Alert HIGH** (Administration → Alerts)
+   - Condition: `CVSS 7.0-8.9` ← Filtre par sévérité
+   - Template: "Slack HIGH" ← Détermine l'apparence
+   - Publisher: Slack
+
+**Le template ne sait PAS qu'il est CRITICAL ou HIGH — c'est l'Alert qui décide!**
+
+### Variables Freemarker disponibles
+
+```
+{{ notification.group }}              — Type d'événement (NEW_VULNERABILITY, etc.)
+{{ notification.level }}              — Niveau (INFO, WARNING, ERROR, etc.)
+{{ notification.scope }}              — Scope (SYSTEM, PORTFOLIO, PROJECT, etc.)
+{{ notification.title }}              — Titre de la notification
+{{ notification.content }}            — Contenu complet
+
+{{ subject.vulnerability.vulnId }}    — ID du CVE (CVE-2024-12345)
+{{ subject.vulnerability.severity }}  — Sévérité (CRITICAL, HIGH, MEDIUM, LOW)
+{{ subject.vulnerability.source }}    — Source (NVD, GitHub, etc.)
+
+{{ subject.component.toString }}      — Nom + version du composant
+{{ subject.component.uuid }}          — UUID du composant
+
+{{ subject.project.toString }}        — Nom + version du projet
+{{ subject.project.uuid }}            — UUID du projet
+
+{{ baseUrl }}                          — URL de base DependencyTrack
+```
+
+**Exemple:**
+- Template: `{{ subject.vulnerability.vulnId }}` → Slack: `CVE-2024-12345` ✅
+- Template: `CVE-2024-12345` → Slack: `CVE-2024-12345` ❌ (valeur figée)
+
+---
+
+### Adapter les templates JSON fournis (syntaxe Freemarker)
+
+Les templates JSON fournis ci-dessous doivent être enrobés dans une condition Freemarker `NEW_VULNERABILITY`. Voici le pattern:
+
+```freemarker
+{% if notification.group == "NEW_VULNERABILITY" %}
+{
+  "blocks": [
+    // Votre JSON ici, avec variables Freemarker
+    {
+      "type": "section",
+      "fields": [
+        {
+          "type": "mrkdwn",
+          "text": "*CVE:*\n{{ subject.vulnerability.vulnId | escape(strategy='json') }}"
+        },
+        {
+          "type": "mrkdwn",
+          "text": "*Severity:*\n{{ subject.vulnerability.severity | escape(strategy='json') }}"
+        }
+      ]
+    }
+  ]
+}
+{% endif %}
+```
+
+**Remplacements clés:**
+- `${vulnerability.cveId}` → `{{ subject.vulnerability.vulnId }}`
+- `${vulnerability.cvssV3Score}` → Utiliser `{{ subject.vulnerability.severity }}` (pas de CVSS dans le template)
+- `${project.name}` → `{{ subject.project.toString }}`
+- `${component.name} ${component.version}` → `{{ subject.component.toString }}`
+
+⚠️ **Note:** Le score CVSS n'est pas disponible dans les variables du template! C'est pourquoi les filtres de sévérité doivent être définis dans les **Alerts**, pas dans le template.
+
+📖 **Référence complète:** Voir [DependencyTrack Notification Template Docs](https://docs.dependencytrack.org/integrations/notifications.html#template-variables)
+
+### Pourquoi la version du projet est importante?
+
+Chaque projet peut avoir plusieurs versions (branches):
+
+| Projet | Version | Vulnérabilités | État |
+|--------|---------|-----------------|------|
+| **app** | master | 2 CRITICAL | Production actuelle |
+| **app** | develop | 4 CRITICAL | En dev, peut être fixé |
+| **app** | preprod | 3 CRITICAL | Staging avant prod |
+
+**Sans la version:** "❌ CRITICAL found in app" → Ambiguïté (quelle branche?)
+
+**Avec la version:** "❌ CRITICAL found in app [master]" → Clair (version production!)
+
+Cela permet:
+- ✅ Identifier exactement la branche affectée
+- ✅ Prioriser (master > preprod > develop)
+- ✅ Trier les actions (production immédiate, develop peut attendre)
+
+---
+
+### 1. Template CRITICAL (Freemarker)
 
 **Déclenche immédiatement — sans délai**
 
-```json
+**Condition d'Alert associée:** `CVSS >= 9.0`
+
+```freemarker
+{% if notification.group == "NEW_VULNERABILITY" %}
 {
-  "channel": "#security-alerts",
+  "channel": "#devsecops_notif",
   "username": "DependencyTrack Alert",
   "icon_emoji": ":rotating_light:",
   "text": "🚨 CRITICAL Vulnerability Detected",
@@ -105,43 +219,37 @@ ON_CALL_ID="S03DEF456UVW"
       "fields": [
         {
           "type": "mrkdwn",
-          "text": "*CVE:*\nCVE-2024-12345"
+          "text": "*CVE:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.vulnerability.vulnId | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*CVSS Score:*\n9.8 (CRITICAL)"
+          "text": "*Severity:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.vulnerability.severity | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*Project:*\napp"
+          "text": "*Project:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.project.toString | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*Component:*\nOpenSSL 3.0.0"
+          "text": "*Component:*"
         },
         {
-          "type": "mrkdwn",
-          "text": "*Severity:*\nCRITICAL"
-        },
-        {
-          "type": "mrkdwn",
-          "text": "*Status:*\nNo patch available"
+          "type": "plain_text",
+          "text": "{{ subject.component.toString | escape(strategy='json') }}"
         }
       ]
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Description:*\nBuffer overflow in OpenSSL X.509 certificate verification allows remote code execution"
-      }
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Affected Versions:*\n3.0.0 - 3.0.5\n\n*Recommended Action:*\nUpgrade immediately to 3.0.6+ or apply security patch"
-      }
     },
     {
       "type": "actions",
@@ -152,30 +260,40 @@ ON_CALL_ID="S03DEF456UVW"
             "type": "plain_text",
             "text": "View in DependencyTrack"
           },
-          "url": "https://dependencytrack.oo-medical.local/project/app",
-          "style": "danger"
+          "url": "{{ baseUrl }}/projects/{{ subject.project.uuid | escape(strategy='json') }}/findings"
         },
         {
           "type": "button",
           "text": {
             "type": "plain_text",
-            "text": "View CVE Details"
+            "text": "View CVE"
           },
-          "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-12345"
+          "url": "https://nvd.nist.gov/vuln/detail/{{ subject.vulnerability.vulnId | escape(strategy='json') }}"
         }
       ]
     }
   ]
 }
+{% endif %}
 ```
 
-### 2. Alerte HIGH (CVSS 7.0 - 8.9)
+**Variables Freemarker utilisées:**
+- `{{ subject.vulnerability.vulnId }}` — ID du CVE
+- `{{ subject.vulnerability.severity }}` — Sévérité (CRITICAL = détecté par l'Alert)
+- `{{ subject.project.toString }}` — Nom + version du projet
+- `{{ subject.component.toString }}` — Nom + version du composant
+- `{{ baseUrl }}` — URL DependencyTrack
+
+### 2. Template HIGH (Freemarker)
 
 **Alerte standard — sans mention channel**
 
-```json
+**Condition d'Alert associée:** `CVSS 7.0-8.9`
+
+```freemarker
+{% if notification.group == "NEW_VULNERABILITY" %}
 {
-  "channel": "#security-alerts",
+  "channel": "#devsecops_notif",
   "username": "DependencyTrack Alert",
   "icon_emoji": ":warning:",
   "text": "⚠️ HIGH Vulnerability Detected",
@@ -195,28 +313,37 @@ ON_CALL_ID="S03DEF456UVW"
       "fields": [
         {
           "type": "mrkdwn",
-          "text": "*CVE:*\nCVE-2024-56789"
+          "text": "*CVE:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.vulnerability.vulnId | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*CVSS Score:*\n7.5 (HIGH)"
+          "text": "*Severity:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.vulnerability.severity | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*Project:*\nmodulsjs"
+          "text": "*Project:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.project.toString | escape(strategy='json') }}"
         },
         {
           "type": "mrkdwn",
-          "text": "*Component:*\nExpress.js 4.18.0"
+          "text": "*Component:*"
+        },
+        {
+          "type": "plain_text",
+          "text": "{{ subject.component.toString | escape(strategy='json') }}"
         }
       ]
-    },
-    {
-      "type": "section",
-      "text": {
-        "type": "mrkdwn",
-        "text": "*Issue:*\nAuthentication bypass via crafted HTTP headers"
-      }
     },
     {
       "type": "actions",
@@ -227,14 +354,28 @@ ON_CALL_ID="S03DEF456UVW"
             "type": "plain_text",
             "text": "View in DependencyTrack"
           },
-          "url": "https://dependencytrack.oo-medical.local/project/modulesjs",
-          "style": "danger"
+          "url": "{{ baseUrl }}/projects/{{ subject.project.uuid | escape(strategy='json') }}/findings"
+        },
+        {
+          "type": "button",
+          "text": {
+            "type": "plain_text",
+            "text": "View CVE"
+          },
+          "url": "https://nvd.nist.gov/vuln/detail/{{ subject.vulnerability.vulnId | escape(strategy='json') }}"
         }
       ]
     }
   ]
 }
+{% endif %}
 ```
+
+**Variables Freemarker utilisées:**
+- `{{ subject.vulnerability.vulnId }}` — ID du CVE
+- `{{ subject.vulnerability.severity }}` — Sévérité (HIGH = détecté par l'Alert)
+- `{{ subject.project.toString }}` — Nom + version du projet  
+- `{{ subject.component.toString }}` — Nom + version du composant
 
 ### 3. Rapport quotidien MEDIUM (CVSS 4.0 - 6.9)
 
@@ -320,7 +461,7 @@ ON_CALL_ID="S03DEF456UVW"
             "type": "plain_text",
             "text": "View Full Report"
           },
-          "url": "https://dependencytrack.oo-medical.local/dashboard"
+          "url": "https://dependencytrack.3d4you.org/dashboard"
         }
       ]
     }
@@ -388,7 +529,7 @@ ON_CALL_ID="S03DEF456UVW"
             "type": "plain_text",
             "text": "View Detailed Report"
           },
-          "url": "https://dependencytrack.oo-medical.local/dashboard"
+          "url": "https://dependencytrack.3d4you.org/dashboard"
         }
       ]
     }
@@ -400,68 +541,226 @@ ON_CALL_ID="S03DEF456UVW"
 
 ## Configuration dans DependencyTrack UI
 
-### Notifications Webhook
+### Étape 1️⃣ : Configurer le Publisher Slack (une seule fois)
 
-1. **Administration → Notifications → Add Notification**
+**Administration → Notifications → Notification Publishers**
 
-   | Champ | Valeur |
-   |-------|--------|
-   | Name | Slack CRITICAL Alerts |
-   | Alert Level | PORTFOLIO_VULN_ADDED |
-   | Published | ☑ |
-   | Publisher | Slack |
-   | Template | Default |
-
-2. **Configuration Publisher (Slack) :**
-
+1. Chercher ou créer `Slack`
+2. Remplir:
    ```
-   Slack API Key: [laisser vide — webhook URL suffit]
-   Webhook URL: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX
-   Channel: #security-alerts
+   Type: Slack
+   Webhook URL: https://hooks.slack.com/services/T.../B.../XX... (depuis Slack API)
    ```
+3. **Save**
 
-3. **Ajouter filtres par sévérité :**
+### Étape 2️⃣ : Créer les Templates personnalisés (optionnel)
 
-   Créer 4 notifications Slack séparées :
-   - `Slack CRITICAL (CVSS >= 9.0)`
-   - `Slack HIGH (7.0 - 8.9)`
-   - `Slack MEDIUM Daily (4.0 - 6.9)` — scheduled
-   - `Slack LOW Weekly (< 4.0)` — scheduled
+**Administration → Notifications → Templates**
 
-### Configuration des flux par sévérité
+Si vous voulez personnaliser les messages (ajouter branding, ton, infos custom):
 
-Dans `Administration → Notifications → Rules` :
+1. Cliquer **+ Create Template**
+2. Remplir:
+   ```
+   Name: "Slack CRITICAL Custom"
+   Mime Type: application/json
+   ```
+3. Coller le JSON de la section "Payloads Slack" ci-dessus
+4. Adapter les URLs (remplacer `dependencytrack.3d4you.org` par `dependencytrack.3d4you.org`)
+5. **Save**
 
-```yaml
-# Rule 1: CRITICAL
-Event Type: "VULNERABILITY_IDENTIFIED"
-Severity: "CRITICAL"
-Project: "ALL"
-→ Notification: "Slack CRITICAL Alerts"
-→ Execute Immediately
+Sinon, utiliser le template `Slack` par défaut.
 
-# Rule 2: HIGH
-Event Type: "VULNERABILITY_IDENTIFIED"
-Severity: "HIGH"
-Project: "ALL"
-→ Notification: "Slack HIGH Alerts"
-→ Execute Immediately
-→ Escalate after 4h
+### Étape 3️⃣ : Créer les Alerts pour chaque sévérité
 
-# Rule 3: MEDIUM (scheduled)
-Event Type: "DAILY_SUMMARY"
-Severity: "MEDIUM"
-Project: "ALL"
-→ Notification: "Slack MEDIUM Daily"
-→ Execute at 02:00 UTC
+⚠️ **IMPORTANT:** Les **Alerts** sont les RÈGLES qui déclenchent les notifications, pas les templates.
 
-# Rule 4: LOW (scheduled)
-Event Type: "WEEKLY_SUMMARY"
-Severity: "LOW"
-Project: "ALL"
-→ Notification: "Slack LOW Weekly"
-→ Execute Mondays 09:00 UTC
+**Administration → Notifications → Alerts → Create Alert**
+
+#### Alert 1: CRITICAL (CVSS >= 9.0)
+
 ```
+Nom: CRITICAL - Immediate Alert (< 1 min)
+Type d'alerte: Portfolio vulnerability notification
+Condition: CVSS Score >= 9.0
+Publisher: Slack
+Template: Slack (ou custom si créé)
+Niveau de notification: NOTIFY_ADMIN (tous les admins)
+Récurrence: À chaque détection (ne pas grouper)
+Statut: Enabled ✅
+```
+
+**Résultat:** Alerte instantanée sur #devsecops_notif
+
+---
+
+#### Alert 2: HIGH (CVSS 7.0 - 8.9)
+
+```
+Nom: HIGH - Alert with 4h Review Window
+Type d'alerte: Portfolio vulnerability notification
+Condition: CVSS Score >= 7.0 AND CVSS Score < 9.0
+Publisher: Slack
+Template: Slack
+Niveau de notification: NOTIFY_TEAM
+Throttle: 1 message par 4h (ne pas spammer)
+Statut: Enabled ✅
+```
+
+**Résultat:** Alerte Slack si nouvelle vuln HIGH, max 1x par 4h
+
+---
+
+#### Alert 3: MEDIUM (CVSS 4.0 - 6.9) — Digest quotidien
+
+```
+Nom: MEDIUM - Daily Digest (02h00 UTC)
+Type d'alerte: Portfolio metrics report
+Condition: CVSS Score >= 4.0 AND CVSS Score < 7.0
+Publisher: Slack
+Template: Slack (utiliser celui du "Rapport quotidien MEDIUM")
+Récurrence: Scheduled
+Schedule: Quotidien à 02:00 UTC
+Grouping: Par projet
+Statut: Enabled ✅
+```
+
+**Résultat:** Un seul message Slack par jour consolidant toutes les MEDIUM du jour précédent
+
+---
+
+#### Alert 4: LOW (CVSS < 4.0) — Digest hebdomadaire
+
+```
+Nom: LOW - Weekly Digest (Lundi 09h00 UTC)
+Type d'alerte: Portfolio metrics report
+Condition: CVSS Score < 4.0
+Publisher: Slack
+Template: Slack (utiliser celui du "Rapport hebdomadaire LOW")
+Récurrence: Scheduled
+Schedule: Chaque lundi à 09:00 UTC
+Grouping: Par sévérité + type d'issue
+Statut: Enabled ✅
+```
+
+**Résultat:** Un seul message Slack par semaine avec digest des LOW
+
+---
+
+### Étape 4️⃣ : Tester la configuration
+
+1. Créer une vulnérabilité test dans un projet (ou importer un SBOM avec une vuln connue)
+2. Vérifier que le webhook Slack reçoit le message
+3. Exécuter le script de test (voir section "Script de test Slack" ci-dessous)
+
+### Résumé des niveaux d'alerte
+
+| Sévérité | Type | Fréquence | Template | Channel |
+|----------|------|-----------|----------|---------|
+| CRITICAL | Alerte immédiate | À chaque détection | CRITICAL | #devsecops_notif |
+| HIGH | Alerte priorité | 1x par 4h max | HIGH | #devsecops_notif |
+| MEDIUM | Digest quotidien | 02h00 UTC | Quotidien MEDIUM | #devsecops_notif |
+| LOW | Digest hebdo | Lundi 09h00 UTC | Hebdo LOW | #devsecops_notif |
+
+---
+
+---
+
+## ⚠️ Résumé: Comment DependencyTrack filtre par sévérité
+
+**Le workflow complet:**
+
+```
+1. NEW_VULNERABILITY détectée
+   ↓
+2. DependencyTrack évalue toutes les Alerts
+   ├─ Alert "CRITICAL": Condition "CVSS >= 9.0" → MATCH? ✅ → Exécute
+   ├─ Alert "HIGH": Condition "CVSS 7.0-8.9" → MATCH? ✅ → Exécute
+   ├─ Alert "MEDIUM": Condition "CVSS 4.0-6.9" → MATCH? ❌ → Skip
+   └─ Alert "LOW": Condition "CVSS < 4.0" → MATCH? ❌ → Skip
+   ↓
+3. Pour chaque Alert qui match:
+   ├─ Récupère le Template assigné (ex: "Slack CRITICAL")
+   ├─ Évalue les variables Freemarker ({{ subject.vulnerability.vulnId }}, etc.)
+   ├─ Envoie le message formaté au Publisher (Slack)
+   └─ Alerte reçue dans #devsecops_notif
+```
+
+**Donc:**
+- ✅ Les **Alerts** filtrent par sévérité (CVSS)
+- ✅ Les **Templates** définissent l'apparence du message
+- ✅ Les **Templates** NE savent PAS qu'ils sont CRITICAL/HIGH/etc.
+- ✅ C'est l'Alert qui décide "appliquer ce template ou pas"
+
+---
+
+## Créer et tester les Templates
+
+### Créer un Custom Template dans DependencyTrack
+
+1. **Administration → Notifications → Templates → Create Template**
+
+2. Remplir:
+   ```
+   Name: Slack CRITICAL Custom
+   Mime Type: application/json
+   Template Content: [coller le Freemarker + JSON ci-dessus]
+   ```
+
+3. **Important:** Copier/coller TOUT le template (y compris `{% if ... %}`)
+   ```freemarker
+   {% if notification.group == "NEW_VULNERABILITY" %}
+   {
+     "blocks": [
+       ...
+     ]
+   }
+   {% endif %}
+   ```
+
+4. **Validation:**
+   - Le template DOIT contenir la condition `{% if notification.group == "NEW_VULNERABILITY" %}`
+   - Le JSON à l'intérieur doit être valide
+   - Les variables doivent être en Freemarker `{{ variable }}`, pas `${variable}`
+
+### Tester le Template avec des valeurs réelles
+
+Une fois le template créé, déclencher une alerte test:
+
+```bash
+# 1. Créer un projet test
+# Administration → Projects → Create Project "test-payload"
+
+# 2. Importer un SBOM avec une vulnérabilité connue
+# (ou manuellement ajouter une fausse dépendance via l'API)
+
+# 3. Vérifier le message Slack
+# Le template sera évalué et les variables remplacées:
+# ${project.name} → "test-payload"
+# ${vulnerability.cveId} → "CVE-2024-xxxxx"
+# etc.
+```
+
+### Debugger un Template qui ne fonctionne pas
+
+**Erreur:** "Invalid template" en créant l'Alert
+
+Solutions:
+1. **Vérifier la syntaxe JSON:** Utiliser [JSONLint](https://jsonlint.com/)
+2. **Vérifier les noms de variables:** Consulter [DependencyTrack docs](https://docs.dependencytrack.org/integrations/notifications.html#template-variables)
+3. **Vérifier les accolades:** `${variable}` (pas `$variable` ou `{{variable}}`)
+4. **Vérifier le Mime Type:** Doit être `application/json` pour Slack
+
+**Erreur:** Template valide mais variables ne se remplacent pas
+
+- Vérifier que la variable existe (ex: `${vulnerability.cvssV3Score}` vs `${vulnerability.cvssScore}`)
+- Consulter la version de DependencyTrack (certaines variables peuvent varier)
+- Tester avec un template simple d'abord:
+  ```json
+  {
+    "text": "Project: ${project.name}, CVE: ${vulnerability.cveId}"
+  }
+  ```
 
 ---
 
