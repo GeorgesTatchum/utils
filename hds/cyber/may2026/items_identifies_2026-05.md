@@ -10,12 +10,12 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 | Indicateur | Valeur |
 |-----------|--------|
 | Total items examinés | 218 |
-| Applicables OneOrtho | 12 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (13 CVE) |
-| Non applicables | 100 (Symfony mailer/notifier/html-sanitizer/json-path/ux, Angular platform-server/service-worker/HttpTransferCache, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée, 55 advisories CISA ICS dont 2 ICSMA, items hors périmètre Docker/Nginx/VS Code) |
-| À investiguer | 4 (Symfony X509, groupe 4 PHP advisories, Microsoft Defender x2) |
+| Applicables OneOrtho | 10 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (13 CVE) |
+| Non applicables | 104 (Symfony mailer/notifier/html-sanitizer/json-path/ux, Angular platform-server/service-worker/HttpTransferCache, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée, 55 advisories CISA ICS dont 2 ICSMA, items hors périmètre Docker/Nginx/VS Code) + 2 items levés après investigation (X509 + Twig sandbox 3 CVE) |
+| À investiguer | 3 (groupe 4 PHP advisories, Microsoft Defender x2) |
 | Priorité P1 | 0 (aucune des CVE applicables n'est en KEV actif sur composant utilisé) |
 | Priorité P2 | 9 (6 RCE Critical Windows Server + 2 CVE Symfony 20/05 + 1 Angular XSS Template/Component) |
-| Priorité P3 | 10 (PHP-FPM XSS, 3 CVE Twig sandbox, Angular DoS digitsInfo, MariaDB CVSS ≥ 7 : CVE-2026-49261/48165/48163/44168/32710) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
+| Priorité P3 | 7 (PHP-FPM XSS, Angular DoS digitsInfo, MariaDB CVSS ≥ 7 : CVE-2026-49261/48165/48163/44168/32710) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
 | Priorité P4 | 1 groupé (8 CVE MariaDB CVSS < 7 : CVE-2026-44173/44172/44171/44170/44169/35549/34303/3494) |
 
 ## 3.2 Détail des items applicables
@@ -58,22 +58,7 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 | Échéance | J+14 |
 | Responsable | Tech Lead Symfony |
 
-### Item 3 : CVE-2026-45063
-
-| Champ | Valeur |
-|-------|--------|
-| Titre | Identity Spoofing via Unanchored DN Regex in X509Authenticator |
-| Source | Symfony Security Advisories |
-| Date publication | 20/05/2026 |
-| CVSS | Non communiqué |
-| Composant impacté | `symfony/security-http` (présent dans composer.lock en transitif via `symfony/security-bundle`) |
-| Produit concerné | Portail Symfony OneSoftware |
-| Exposition | À investiguer : l'authentificateur X509 est-il utilisé par OneSoftware ? |
-| Priorité retenue | À investiguer avant priorisation. Si X509Authenticator non utilisé, item reclassé en non applicable. Si utilisé, P3 par défaut (impact identité limité à un canal d'auth spécifique) |
-| Action décidée | Investigation d'usage avant décision |
-| Ticket remédiation | À créer en Jira (investigation), lié à CICD-169 |
-| Échéance | 11/06/2026 (investigation) |
-| Responsable | Tech Lead Symfony |
+> Note : l'ex-Item 3 (CVE-2026-45063, X509Authenticator) a été levé après investigation et déplacé en §3.3 « Items levés après investigation ». La numérotation des items suivants est conservée pour traçabilité (pas de renumérotation rétroactive).
 
 ### Item 4 : GHSA-7qg2-v9fj-4mwv
 
@@ -247,23 +232,7 @@ Source : fichier complet `./wwwroot/community-server.md` + inventaire OneOrtho `
 
 **Synthèse Item 9** : **un seul plan d'action consolidé** = monter chaque instance vers la dernière LTS de sa branche (11.8.8, 11.4.12, 10.11.18, 10.6.27). Ce plan unique résout les 13 CVE applicables sur les 16 instances, dont 1 CVSS 10.0 (CVE-2026-49261), 1 CVSS 8.6 (CVE-2026-32710) et 3 CVSS 8.0 (CVE-2026-48165, 48163, 44168).
 
-### Item 10 : CVE-2026-48805 + CVE-2026-48806 + CVE-2026-46636
-
-| Champ | Valeur |
-|-------|--------|
-| Titre | Twig sandbox bypass — 3 CVE |
-| Source | Symfony Security Advisories (27/05/2026) |
-| Date publication | 27/05/2026 |
-| CVE | CVE-2026-48805 (régression état sandbox dans wrappers internes), CVE-2026-48806 (contournement via `__toString()` sur clés mapping dynamiques), CVE-2026-46636 (contournement allowlist sandbox entre rendus de templates cachés) |
-| Composant impacté | `twig/twig` (présent dans composer.lock) |
-| Produit concerné | Portail Symfony OneSoftware |
-| Exposition | Interne / Internet selon contexte. Vulnérabilités exploitables seulement si Twig sandbox est utilisé pour exécuter des templates fournis par utilisateur (peu probable côté OneSoftware mais à confirmer) |
-| KEV | Non |
-| Priorité retenue | P3 par défaut. Si Twig sandbox non utilisé pour des templates utilisateur → reclassé non applicable |
-| Action décidée | Étape 1 : investiguer l'utilisation du sandbox Twig dans OneSoftware (recherche de `\Twig\Sandbox\SecurityPolicy` ou `\Twig\Extension\SandboxExtension`). Étape 2 : si utilisé, patcher Twig vers la version corrigée |
-| Ticket remédiation | À créer en Jira, lié à CICD-169 |
-| Échéance | J+30 |
-| Responsable | Tech Lead Symfony |
+> Note : l'ex-Item 10 (CVE-2026-48805 + CVE-2026-48806 + CVE-2026-46636, Twig sandbox bypass) a été levé après investigation et déplacé en §3.3 « Items levés après investigation ». Numérotation des items suivants conservée.
 
 ### Item 11 : GHSA-p3vc-36g9-x9gr
 
@@ -302,6 +271,18 @@ Source : fichier complet `./wwwroot/community-server.md` + inventaire OneOrtho `
 | Responsable | Tech Lead Angular |
 
 ## 3.3 Items non applicables (traçabilité)
+
+### Items levés après investigation
+
+Items initialement classés « à investiguer » ou applicables, reclassés non applicables après retour de l'équipe technique. Aucun ticket de remédiation créé (aucune action corrective requise) ; la trace de l'investigation tient lieu de justificatif pour l'audit.
+
+| ID | Composant | Investigation | Conclusion |
+|----|-----------|---------------|------------|
+| CVE-2026-45063 (X509Authenticator) | `symfony/security-http` | Tech Lead Symfony (juin 2026) | **Non applicable.** Justification primaire : la brique `X509Authenticator` du bundle Security HTTP n'est pas utilisée par OneSoftware. Justification secondaire : selon le Tech Lead la version déployée (5.4.53) ne contient plus la faille. **Écart à réconcilier** : le composer.lock du repo indique `symfony/security-http` v5.4.47 — probablement un composer.lock local non synchronisé avec la prod. La conclusion « non applicable » repose sur la justification primaire (non-usage), indépendante de la version. |
+| CVE-2026-48805 + CVE-2026-48806 + CVE-2026-46636 (Twig sandbox bypass) | `twig/twig` | Tech Lead Symfony (juin 2026) | **Non applicable.** Justification primaire : le sandbox Twig n'est pas utilisé pour exécuter des templates fournis par utilisateur. Justification secondaire : selon le Tech Lead la version déployée (3.27.1) ne contient plus les failles. **Écart à réconcilier** : le composer.lock du repo indique `twig/twig` v3.24.0 — composer.lock local probablement non synchronisé avec la prod. Conclusion fondée sur la justification primaire (non-usage du sandbox), indépendante de la version. |
+
+> Action de fond à porter en §7 : réconcilier le composer.lock du repo avec les versions réellement déployées en production (écart constaté sur `twig/twig` et `symfony/security-http`). Tant que l'écart subsiste, ne s'appuyer que sur les justifications de non-usage, pas sur les numéros de version.
+
 
 ### Symfony Security Advisories — 14 items écartés
 
