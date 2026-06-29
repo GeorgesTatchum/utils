@@ -145,7 +145,7 @@ Item issu de la revue mensuelle Threat Intelligence 2026-05.
 Source : Microsoft MSRC Security Update Guide (export CSV 02/06/2026), Patch Tuesday du 12/05/2026.
 Vulnérabilités : CVE-2026-32161, CVE-2026-35421, CVE-2026-40402, CVE-2026-40403, CVE-2026-41089, CVE-2026-41096 (Critical).
 
-Action attendue : application du Patch Tuesday 12/05/2026 sur l'ensemble du parc Windows Server. Validation post-patch sur staging avant prod.
+Action attendue : application interne (MCO OS OneOrtho) du Patch Tuesday 12/05/2026 sur les serveurs non patchés, en fenêtre 02h–03h, canary préprod puis prod. Mode opératoire : `procedure_application_patch_ticket3_windows.md`. Validation post-patch (build + portail) avant clôture.
 
 Critères d'acceptation :
 * [ ] Correctifs appliqués sur toutes les versions du parc (2016/2019/2022/2025)
@@ -175,13 +175,13 @@ Vulnérabilités publiées par Microsoft (Patch Tuesday du 12/05/2026) dans Wind
 Le parc n'a pas encore reçu la mise à jour cumulative de mai (build < build cible) ; l'OS porte le portail public via IIS → exposition Internet. Environnement d'exécution non encore patché.
 
 4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
-Cadence d'application des Patch Tuesday par AVA6 ; fenêtre de maintenance ; parc hétérogène (4 versions Windows Server) à patcher.
+Le MCO de l'OS est assuré en interne par OneOrtho (pas par AVA6) ; absence jusqu'ici d'un cycle de patch OS planifié et d'une vérification systématique du niveau de correctif du parc.
 
 5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
-Coordination OneOrtho/AVA6 sur le cycle de patch ; absence (jusqu'ici) de vérification systématique du niveau de correctif du parc.
+Pas de processus interne formalisé de gestion des Patch Tuesday OS (planification, fenêtre de maintenance, suivi du build) avant la mise en place de la présente revue.
 
 6. Analyse finale
-Cause fondamentale : failles OS amont + latence d'application du Patch Tuesday. Impact : compromission de l'hôte → atteinte C/I/D du portail et des données d'intervention hébergées, effet de bord sur les DM hébergés. Recommandations : application sous SLA, vérification systématique du build (procédure dédiée), automatisation du suivi des Patch Tuesday avec AVA6.
+Cause fondamentale : failles OS amont + latence d'application du Patch Tuesday. Impact : compromission de l'hôte → atteinte C/I/D du portail et des données d'intervention hébergées, effet de bord sur les DM hébergés. Recommandations : application interne planifiée (fenêtre 02h–03h, cf. `procedure_application_patch_ticket3_windows.md`), vérification systématique du build, mise en place d'un cycle de patch OS mensuel récurrent.
 ```
 
 **Raison du blocage/décision**
@@ -361,10 +361,10 @@ Vulnérabilités publiées par Microsoft (Patch Tuesday du 12/05/2026) — envir
 Le parc n'a pas encore reçu la cumulative de mai (build < build cible) ; exposition interne (accès local requis pour la plupart des CVE).
 
 4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
-Cadence d'application des Patch Tuesday par AVA6 ; fenêtre de maintenance commune avec le Ticket 3.
+MCO OS interne OneOrtho ; fenêtre de maintenance commune avec le Ticket 3 (application groupée).
 
 5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
-Coordination OneOrtho/AVA6 sur le cycle de patch ; pas encore de vérification systématique du niveau de correctif.
+Pas encore de cycle de patch OS interne formalisé ni de vérification systématique du niveau de correctif.
 
 6. Analyse finale
 Cause fondamentale : failles OS/.NET amont + latence d'application du Patch Tuesday. Impact : escalade locale ou fuite d'information sur l'hôte, surface réelle réduite par le prérequis d'accès local. Recommandations : application groupée avec les RCE Critical (Ticket 3), suivi systématique du niveau de correctif.
@@ -634,7 +634,7 @@ Exposition conditionnée à l'usage effectif des fonctions dans un contexte atta
 
 **En-tête**
 - Résumé : `[SEC][P3][WindowsServer] CVE-2026-45498 — montée plateforme Defender sur 2 serveurs (Threat Intel 2026-05)`
-- Type : Sous-tâche de CICD-169 · Priorité : Medium · Assigné : DevSecOps + équipe infrastructure (+ AVA6) · Échéance : 06/07/2026
+- Type : Sous-tâche de CICD-169 · Priorité : Medium · Assigné : DevSecOps + équipe infrastructure (MCO OS interne OneOrtho) · Échéance : 06/07/2026
 - Étiquettes : threat-intel, sec-2026-05, windows-server, defender, infrastructure
 
 **Description**
@@ -643,7 +643,7 @@ Item issu de la revue mensuelle Threat Intelligence 2026-05, confirmé par le Sp
 Source : CISA KEV + Microsoft MSRC.
 Vulnérabilité : CVE-2026-45498 — Microsoft Defender Antimalware Platform Denial of Service. Au CISA KEV (exploitation active).
 
-Action attendue : mettre à jour la plateforme antimalware Defender (AMProductVersion ≥ 4.18.26040.7) sur les 2 serveurs concernés, ET corriger le mécanisme d'auto-update plateforme défaillant (plateforme figée à 4.18.1911.3 = nov. 2019). Update-MpSignature ne met pas à jour la plateforme → passer par Windows Update / package plateforme, via AVA6 si le canal est bloqué.
+Action attendue : mettre à jour la plateforme antimalware Defender (AMProductVersion ≥ 4.18.26040.7) sur les 2 serveurs concernés, ET corriger le mécanisme d'auto-update plateforme défaillant (plateforme figée à 4.18.1911.3 = nov. 2019). Update-MpSignature ne met pas à jour la plateforme → application interne via Windows Update / package plateforme (MCO OS OneOrtho), en réparant le canal de mise à jour bloqué.
 
 Critères d'acceptation :
 * [ ] AMProductVersion ≥ 4.18.26040.7 sur les 2 serveurs (relevé Get-MpComputerStatus après MAJ)
@@ -687,7 +687,7 @@ Cause fondamentale : auto-update de la plateforme Defender cassé sur 2 serveurs
 ```
 * Priorité retenue : P3 — la CVE est au KEV mais de type DoS / sévérité MSRC Low, exposition interne. Le KEV justifie de ne pas reléguer en P4. SLA J+30 (06/07/2026).
 * Décision particulière : la remédiation va au-delà de la CVE — réparer l'auto-update plateforme (cause racine) qui expose les 2 serveurs à un backlog de CVE plateforme.
-* Dépendances / blocages : Update-MpSignature insuffisant (ne touche pas la plateforme) → dépend du canal Windows Update / d'AVA6 ; fenêtre de maintenance des 2 serveurs.
+* Dépendances / blocages : Update-MpSignature insuffisant (ne touche pas la plateforme) → application interne via le canal Windows Update à rétablir ; fenêtre de maintenance des 2 serveurs (02h–03h).
 ```
 
 ---

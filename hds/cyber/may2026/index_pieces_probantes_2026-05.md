@@ -64,8 +64,9 @@ Index des pièces probantes à archiver avec le rapport complet. Sert de preuve 
 | Pièce | Emplacement | Statut |
 |-------|-------------|--------|
 | Tickets Jira (8 remédiation + 2 Spikes + Ticket 9 Defender) | `utils/hds/may2026/tickets_jira_2026-05.md` | [Présent] |
-| Modèle mail AVA6 (Ticket 3) | `utils/hds/may2026/modele_mail_ava6_ticket3.md` | [Présent] |
-| Mail AVA6 envoyé + réponse (builds par serveur) | Messagerie | [À joindre quand échangé] |
+| Procédure d'application interne (Ticket 3, MCO OS OneOrtho) | `utils/hds/may2026/procedure_application_patch_ticket3_windows.md` | [Présent] |
+| Logs d'application internes `apply-2026-05.log` + relevé build après patch (par serveur) | Serveurs / annexe | [À joindre après application] |
+| Modèle mail AVA6 (gabarit générique, OBSOLÈTE pour le patching OS) | `utils/hds/may2026/modele_mail_ava6_ticket3.md` | [Présent — non utilisé pour Ticket 3] |
 | Liens Jira des tickets créés | À reporter dans le rapport une fois les tickets ouverts | [À joindre] |
 
 ## 6. Checklist avant clôture de l'archivage
@@ -100,8 +101,8 @@ Threat-Intelligence/2026-05/
     ├── defender_get-mpcomputerstatus_parc.txt
     ├── techlead_symfony_x509_twig.pdf      (retours écrits)
     ├── windows_builds_avant_apres.txt      (Ticket 3)
-    ├── snyk_dependabot_2026-05.csv
-    └── mail_ava6_ticket3.pdf               (envoi + réponse)
+    ├── apply-2026-05_logs/                  (logs d'application interne par serveur)
+    └── snyk_dependabot_2026-05.csv
 ```
 
 > Note conformité : aucune donnée patient ni secret dans les pièces. Les noms d'hôtes ne sont conservés que là où nécessaire (relevés build/Defender). Le PDF PUBLISHED est la version figée faisant foi ; toute correction ultérieure passe par un erratum daté.

@@ -82,12 +82,12 @@ Update-MpSignature
 # Re-vérifier ensuite
 Get-MpComputerStatus | Select-Object AMEngineVersion, AMProductVersion
 ```
-Si la mise à jour n'aboutit pas (proxy, WSUS, connectivité), escalader à AVA6 : application de la dernière plateforme/moteur Defender sur les serveurs concernés + confirmation des versions atteintes. Référencer CICD-169, échéance alignée sur la priorité (P2 → 22/06/2026).
+Si la mise à jour n'aboutit pas (proxy, WSUS, connectivité), traiter en interne (MCO OS OneOrtho) : rétablir le canal de mise à jour Windows, appliquer la dernière plateforme/moteur Defender sur les serveurs concernés + confirmer les versions atteintes. Référencer CICD-169.
 
 ## 7. Conclusion du Spike et traçabilité
 
 - Reporter le constat (mode + versions par serveur) dans le Spike et, selon la grille §5, en §3.3 du rapport (non applicable / déjà corrigé) ou en nouveaux tickets de remédiation.
-- Pièces probantes à conserver : sortie `Get-MpComputerStatus` (avant / après si MAJ forcée), échange AVA6 le cas échéant.
+- Pièces probantes à conserver : sortie `Get-MpComputerStatus` (avant / après si MAJ forcée), logs d'application internes le cas échéant.
 - Mettre à jour la décision §6 du rapport (ligne 7) avec la conclusion.
 
 > Rappel : ces 2 CVE étant au KEV, traiter le Spike sans attendre — même si l'auto-update les a probablement déjà couvertes, la confirmation explicite du niveau de version est ce qui clôt l'item pour l'audit.

@@ -1,6 +1,8 @@
 # Procédure de vérification — Ticket 3 : 6 RCE Critical Windows Server (Patch Tuesday 12/05/2026)
 
-Objet : vérifier si les serveurs Windows du parc disposent déjà du correctif avant d'escalader à AVA6 (hébergeur / exploitant infrastructure) pour application.
+> **Volet application déplacé.** Le MCO de l'OS est assuré en interne par OneOrtho (pas par AVA6). L'application des correctifs (planifiée 02h–03h) fait l'objet d'un document dédié : `procedure_application_patch_ticket3_windows.md`. Le présent document conserve les **méthodes de vérification** du niveau de correctif (§1 à §4 ter).
+
+Objet : vérifier si les serveurs Windows du parc disposent du correctif, afin de déclencher l'application interne sur les serveurs non patchés.
 Ticket associé : Ticket 3 (`SEC-THREATINTEL-2026-05` / CICD-169). Priorité P2, SLA 22/06/2026.
 CVE couvertes : CVE-2026-32161, CVE-2026-35421, CVE-2026-40402, CVE-2026-40403, CVE-2026-41089, CVE-2026-41096.
 
@@ -35,7 +37,7 @@ Exécuter sur chaque serveur (ou à distance, cf. §4) et noter `ProductName`, `
 ### Étape 3 — Comparer au build cible
 Pour chaque serveur, comparer `CurrentBuild.UBR` relevé au build corrigé du tableau §2.
 - build relevé ≥ build cible → **Patché** (rien à faire).
-- build relevé < build cible → **Non patché** → escalade AVA6 (§5).
+- build relevé < build cible → **Non patché** → application interne (§5).
 
 ### Étape 4 — Consolider
 Remplir le tableau de relevé (§6) avec la conclusion par serveur.
@@ -103,10 +105,10 @@ last(/{HOST}/win.build) < "20348.5139"
 
 ### Exploitation du résultat
 - Tableau de bord / dernières valeurs : exporter la liste des hôtes avec leur build → remplir le tableau de relevé §6 pour l'ensemble du parc.
-- Les hôtes dont le trigger est actif (build < cible) = serveurs **non patchés** → escalade AVA6 (§5).
+- Les hôtes dont le trigger est actif (build < cible) = serveurs **non patchés** → application interne (§5).
 
 ### Conséquence sur la démarche
-- Si Zabbix couvre tout le parc avec le build complet : tu disposes de la vue autoritative toi-même → le mail AVA6 devient une **demande d'application ciblée** sur la liste des serveurs sous le build cible (et non une demande de confirmation parc).
+- Si Zabbix couvre tout le parc avec le build complet : tu disposes de la vue autoritative toi-même → la liste des serveurs sous le build cible alimente directement l'**application interne** (§5).
 - Si l'UBR n'est pas encore collecté : configurer l'item d'abord (toi ou via AVA6), sinon rester sur la méthode échantillon §4 + demande de confirmation.
 
 ### Vérifier dans l'interface Zabbix si la donnée est collectée
@@ -161,21 +163,19 @@ Pour éviter de parcourir les serveurs un à un : exécuter la vérification **e
 3. Lancer `verif_builds_parallele.ps1` → tableau consolidé + `resultat_builds_2026-05.csv` (à archiver comme pièce probante, cf. bordereau §4).
 
 ### Limites
-- L'**application** du correctif Windows (cumulative) ne se déclenche pas par une simple commande distante : elle passe par Windows Update / WSUS, donc par AVA6 (§5). Ce script couvre la **vérification** parallèle, pas le patch lui-même. (Un déclenchement distant via le module `PSWindowsUpdate` est possible si OneOrtho exploite ses propres serveurs, mais le patching reste de la responsabilité AVA6.)
+- L'**application** du correctif Windows (cumulative) ne se déclenche pas par une simple commande distante : elle passe par une mise à jour Windows (MSU/tâche planifiée), réalisée **en interne** (MCO OS OneOrtho). Ce script couvre la **vérification** parallèle, pas le patch lui-même — voir `procedure_application_patch_ticket3_windows.md` (§5).
 - Si **Zabbix** collecte déjà le build du parc (§4 bis), c'est encore plus direct et sans gestion d'identifiants — le préférer quand c'est disponible.
 
-## 5. Si patch manquant → demande à AVA6
+## 5. Si patch manquant → application interne
 
-Constituer une demande à AVA6 (ticket exploitant / mail tracé) contenant :
-- **Objet** : application Patch Tuesday Windows Server mai 2026 — 6 RCE Critical (réf. SEC-THREATINTEL-2026-05 / CICD-169).
-- **Serveurs concernés** : liste des serveurs identifiés « Non patché » à l'étape 3, avec leur version.
-- **KB attendue par version** : tableau §2 (KB cumulative correspondant à chaque version).
-- **Criticité et échéance** : 6 vulnérabilités RCE de gravité Critical, exposition Internet (portail via IIS). Priorité P2, correctif attendu avant le **22/06/2026** (SLA J+14).
-- **Demande** : application de la cumulative + redémarrage planifié + **confirmation du build atteint** par serveur après patch (doit être ≥ build cible §2).
-- **Fenêtre de maintenance** : proposer un créneau (hors heures d'usage clinique) et demander validation.
-- **Pré-requis** : sauvegarde / snapshot préalable, validation de la disponibilité du portail après redémarrage.
+Le MCO de l'OS est assuré en interne par OneOrtho. L'application des correctifs sur les serveurs « Non patché » suit la procédure dédiée : **`procedure_application_patch_ticket3_windows.md`**.
 
-Répartition (RACI) : OneOrtho = demandeur + vérificateur (A/R sur la décision), AVA6 = exécutant de la mise à jour (R sur l'application), validation conjointe post-patch.
+En synthèse :
+- Application interne de la cumulative ciblée (KB par version, §2) via MSU + tâche planifiée, dans la **fenêtre 02h–03h**.
+- **Canary préprod (nuit N) → prod (nuit N+1)**, snapshot VM préalable, redémarrage contrôlé.
+- Confirmation du **build atteint** par serveur après patch (≥ build cible §2) et disponibilité du portail.
+
+RACI : OneOrtho = décideur + exécutant + vérificateur (MCO OS interne). AVA6 = hébergeur infrastructure, non impliqué dans l'application des correctifs OS.
 
 ## 6. Tableau de relevé (à compléter)
 
@@ -185,18 +185,18 @@ Répartition (RACI) : OneOrtho = demandeur + vérificateur (A/R sur la décision
 
 ## 7. Vérification post-patch et clôture
 
-Après intervention AVA6 :
+Après application interne (cf. procédure dédiée §7) :
 1. Re-exécuter l'étape 2 sur les serveurs patchés.
 2. Confirmer `CurrentBuild.UBR` ≥ build cible §2 pour chacun.
 3. Vérifier la disponibilité du portail OneSoftware après redémarrage.
-4. Joindre au Ticket 3 : tableau de relevé avant/après + confirmation AVA6.
+4. Joindre au Ticket 3 : tableau de relevé avant/après + logs d'application.
 5. Passer le critère d'acceptation « correctifs appliqués sur toutes les versions du parc » à validé, clore le Ticket 3.
 
 ## 8. Traçabilité (preuves à conserver pour l'audit)
 
 - Capture / export du relevé de build avant patch (étape 2).
-- Demande AVA6 (ticket exploitant ou mail) horodatée.
-- Confirmation AVA6 post-patch + relevé de build après.
+- Logs d'application internes (`apply-2026-05.log`) par serveur.
+- Relevé de build après patch (≥ build cible).
 - Lien depuis le Ticket 3 et le rapport mensuel `cyber/may2026/`.
 
-> Cas particulier : si l'étape 3 montre que **tous** les serveurs sont déjà ≥ build cible (parc déjà patché par AVA6 dans le cycle courant), documenter ce constat dans le Ticket 3, le clore en « déjà corrigé — aucune action AVA6 requise », et conserver le relevé comme preuve. Ne pas escalader inutilement.
+> Cas particulier : si l'étape 3 montre que **tous** les serveurs sont déjà ≥ build cible, documenter ce constat dans le Ticket 3, le clore en « déjà corrigé — aucune action requise », et conserver le relevé comme preuve.

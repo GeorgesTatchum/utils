@@ -139,10 +139,10 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 | Produit concerné | Infrastructure d'exécution — **2 serveurs Windows** ({{SRV-A}}, {{SRV-B}}) avec `AMProductVersion` = 4.18.1911.3 (< cible). Reste du parc ≥ cible (non concerné) |
 | Exposition | Interne |
 | Priorité retenue | **P3** (KEV mais DoS / sévérité MSRC Low, exposition interne). KEV justifie de ne pas reléguer en P4 |
-| Action décidée | Mettre à jour la plateforme Defender (≥ 4.18.26040.7) sur les 2 serveurs **et corriger le mécanisme d'auto-update plateforme défaillant** (plateforme figée à la version de nov. 2019). `Update-MpSignature` ne met pas à jour la plateforme → passer par Windows Update / AVA6 |
+| Action décidée | Mettre à jour la plateforme Defender (≥ 4.18.26040.7) sur les 2 serveurs **et corriger le mécanisme d'auto-update plateforme défaillant** (plateforme figée à la version de nov. 2019). `Update-MpSignature` ne met pas à jour la plateforme → application interne via Windows Update (MCO OS OneOrtho) |
 | Ticket remédiation | À créer en Jira, lié à CICD-169 (cf. Ticket 9 du fichier tickets) |
 | Échéance | J+30 (06/07/2026) |
-| Responsable | DevSecOps + équipe infrastructure (+ AVA6) |
+| Responsable | DevSecOps + équipe infrastructure (MCO OS interne OneOrtho) |
 
 ### Item 9 : CVE MariaDB Community Server 2026 — analyse par version du parc
 

@@ -1,5 +1,7 @@
 # Modèle de mail à AVA6 — Ticket 3 (RCE Critical Windows Server)
 
+> **OBSOLÈTE pour le Ticket 3.** Le MCO de l'OS est assuré en interne par OneOrtho (pas par AVA6) : l'application des correctifs Windows se fait en interne — voir `procedure_application_patch_ticket3_windows.md`. Ce modèle n'est PAS utilisé pour le patching OS. Conservé uniquement comme gabarit générique au cas où une demande à AVA6 (hébergeur infrastructure) serait nécessaire pour un autre sujet (matériel, hyperviseur, réseau).
+
 À envoyer après avoir testé un échantillon de serveurs. Le mail demande à AVA6 de **confirmer le statut de correctif sur l'ensemble du parc** (OneOrtho n'a vérifié qu'un échantillon et n'a pas la visibilité complète) et d'appliquer la mise à jour là où elle manque. Adapter les champs entre {{...}}.
 
 ---
