@@ -42,11 +42,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilité tierce de symfony/runtime (SOUP IEC 62304 §9), aucun défaut du code OneOrtho.
-* Mécanisme : contournement du correctif de CVE-2024-50340 — la protection précédemment ajoutée peut être contournée, réexposant la faille d'origine du composant runtime.
-* Vecteur / conditions : exploitation via le point de bootstrap/réinitialisation du runtime ; conditions précises à confirmer dans l'advisory.
-* Applicabilité OneOrtho : symfony/runtime présent dans composer.lock (branche 5.4.*) ; portail exposé sur Internet via IIS → chemin d'exposition direct.
-* Impact potentiel : divulgation d'information ou altération du comportement runtime du portail. Portail non-DM mais hébergeur des 3 planificateurs — effet de bord à évaluer si exploitation confirmée.
+1. Que s'est-il passé dans le code ?
+Dans le composant tiers symfony/runtime, le correctif de CVE-2024-50340 peut être contourné (patch bypass) : la protection ajoutée en amont est rejouable/contournable, réexposant la faille d'origine sur le point de bootstrap/réinitialisation du runtime. Code du composant amont, non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans symfony/runtime (SOUP au sens IEC 62304 §9), réf. CVE-2026-46626 (Symfony Security Advisory du 20/05/2026). Ni correction ni fonctionnalité OneOrtho : faille amont. OneOrtho est concerné car symfony/runtime est une dépendance du portail.
+
+3. Pourquoi cette cause s'est-elle produite ?
+La version déployée (branche 5.4.*) est antérieure à la version corrigée (à identifier dans l'advisory) ; composant utilisé par le portail Symfony, exposition Internet via IIS. Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Latence de mise à jour des dépendances PHP : montée de version Symfony tributaire de la fenêtre de release et de validation.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Processus de veille/SBOM récemment formalisé ; détection automatisée (Snyk/Dependabot) en place mais la montée de version n'est pas automatique.
+
+6. Analyse finale
+Cause fondamentale : faille amont symfony/runtime + latence de patch. Impact : divulgation d'information ou altération du comportement runtime du portail (effet de bord possible sur les DM hébergés). Recommandations : appliquer la montée de version, automatiser le suivi des advisories Symfony, intégrer la montée dans le cycle de patch mensuel.
 ```
 
 **Raison du blocage/décision**
@@ -92,11 +104,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilité tierce de symfony/routing (SOUP IEC 62304 §9), aucun défaut du code OneOrtho.
-* Mécanisme : le générateur d'URL (UrlGenerator) ne valide pas correctement les contraintes de route, permettant d'injecter une URL ne respectant pas le motif attendu.
-* Vecteur / conditions : injection d'une valeur forgée dans un paramètre de route ; conditions précises à confirmer dans l'advisory.
-* Applicabilité OneOrtho : symfony/routing présent dans composer.lock ; portail exposé sur Internet via IIS → toute génération d'URL côté serveur est un point d'exposition potentiel.
-* Impact potentiel : contournement de contrôle d'accès basé sur le motif de route, ou redirection/forge d'URL. Atteinte intégrité possible. Portail non-DM, effet de bord à évaluer.
+1. Que s'est-il passé dans le code ?
+Dans le composant tiers symfony/routing, le générateur d'URL (UrlGenerator) ne valide pas correctement les contraintes de route (route requirements), permettant de générer/injecter une URL ne respectant pas le motif attendu. Code du composant amont, non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans symfony/routing (SOUP au sens IEC 62304 §9), réf. CVE-2026-45065 (Symfony Security Advisory du 20/05/2026). Ni correction ni fonctionnalité OneOrtho : faille amont. OneOrtho est concerné car symfony/routing est une dépendance du portail.
+
+3. Pourquoi cette cause s'est-elle produite ?
+La version déployée est antérieure à la version corrigée (à confirmer avec le Responsable) ; composant utilisé par le portail Symfony, exposition Internet via IIS. Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Latence de mise à jour des dépendances PHP (cadence de montée Symfony).
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Veille/SBOM récemment formalisés ; montée de version non automatisée.
+
+6. Analyse finale
+Cause fondamentale : faille amont symfony/routing + latence de patch. Impact : contournement de contrôle d'accès basé sur le motif de route ou forge/redirection d'URL (atteinte intégrité). Recommandations : montée de version, suivi automatisé des advisories Symfony, intégration au cycle de patch mensuel.
 ```
 
 **Raison du blocage/décision**
@@ -141,11 +165,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilités de l'OS hôte Windows Server, environnement d'exécution / SOUP au sens IEC 62304 §5.7 — hors code OneOrtho.
-* Mécanisme : 6 CVE permettant l'exécution de code à distance dans des composants système Windows Server (détail par CVE dans le MSRC Security Update Guide).
-* Vecteur / conditions : RCE déclenchable à distance selon le composant visé ; gravité Critical Microsoft.
-* Applicabilité OneOrtho : parc Windows Server 2016/2019/2022/2025 hétérogène, OS portant le portail public via IIS → exposition Internet directe.
-* Impact potentiel : compromission de l'hôte → atteinte confidentialité/intégrité/disponibilité du portail et des données d'intervention hébergées. Effet de bord sur les DM hébergés à considérer.
+1. Que s'est-il passé dans le code ?
+Dans des composants système de Windows Server, 6 failles permettent l'exécution de code à distance (détail par CVE dans le MSRC Security Update Guide). Code de l'OS amont (Microsoft), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilités publiées par Microsoft (Patch Tuesday du 12/05/2026) dans Windows Server — environnement d'exécution / SOUP au sens IEC 62304 §5.7. Réf. CVE-2026-32161, CVE-2026-35421, CVE-2026-40402, CVE-2026-40403, CVE-2026-41089, CVE-2026-41096. Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Le parc n'a pas encore reçu la mise à jour cumulative de mai (build < build cible) ; l'OS porte le portail public via IIS → exposition Internet. Environnement d'exécution non encore patché.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Cadence d'application des Patch Tuesday par AVA6 ; fenêtre de maintenance ; parc hétérogène (4 versions Windows Server) à patcher.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Coordination OneOrtho/AVA6 sur le cycle de patch ; absence (jusqu'ici) de vérification systématique du niveau de correctif du parc.
+
+6. Analyse finale
+Cause fondamentale : failles OS amont + latence d'application du Patch Tuesday. Impact : compromission de l'hôte → atteinte C/I/D du portail et des données d'intervention hébergées, effet de bord sur les DM hébergés. Recommandations : application sous SLA, vérification systématique du build (procédure dédiée), automatisation du suivi des Patch Tuesday avec AVA6.
 ```
 
 **Raison du blocage/décision**
@@ -192,11 +228,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilité tierce d'@angular/core (SOUP IEC 62304 §9), aucun défaut du code OneOrtho.
-* Mécanisme : contournement de l'espace de noms des templates et composants dynamiques permettant l'injection de script (XSS) lors du rendu.
-* Vecteur / conditions : données contrôlées par l'attaquant passant par certains patterns de rendu de template/composant dynamique ; exploitable côté navigateur.
-* Applicabilité OneOrtho : @angular/core présent dans les 4 planificateurs ; modules livrés au navigateur du client → exposition Internet.
-* Impact potentiel : exécution de script dans le contexte de la session utilisateur (vol de session, actions non sollicitées). Planificateurs sous périmètre DM — impact à tracer côté sécurité produit.
+1. Que s'est-il passé dans le code ?
+Dans le composant tiers @angular/core, un contournement de l'espace de noms des templates et composants dynamiques permet l'injection de script (XSS) lors du rendu. Code du composant amont, non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans @angular/core (SOUP au sens IEC 62304 §9), réf. GHSA-692r-grfm-v8x7 (Angular Security Advisory du 28/05/2026). Ni correction ni fonctionnalité OneOrtho : faille amont. OneOrtho est concerné car @angular/core est une dépendance des planificateurs.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Les versions déployées (20.3 et 21.2) sont antérieures au correctif ; composant présent dans les 4 planificateurs, livrés au navigateur du client → exposition Internet. Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Latence de montée Angular, aggravée par l'hétérogénéité de versions (2 branches 20.3 / 21.2 à patcher et tester séparément).
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Convergence des versions Angular non encore réalisée (ticket ARCH-VERSIONS-CONVERGENCE en attente) ; veille récemment formalisée.
+
+6. Analyse finale
+Cause fondamentale : faille amont @angular/core + latence de patch + hétérogénéité de versions. Impact : exécution de script dans la session utilisateur des planificateurs (périmètre DM), à tracer côté sécurité produit. Recommandations : montée par branche, audit des patterns de rendu vulnérables, convergence des versions Angular, suivi automatisé des advisories Angular.
 ```
 
 **Raison du blocage/décision**
@@ -243,11 +291,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilité tierce de PHP-FPM (SOUP IEC 62304 §9), aucun défaut du code OneOrtho.
-* Mécanisme : injection de script (XSS) dans la page de statut exposée par PHP-FPM (endpoint /status).
-* Vecteur / conditions : nécessite que l'endpoint /status soit accessible ; non exposé publiquement dans une configuration par défaut.
-* Applicabilité OneOrtho : PHP-FPM présent dans les images ; exposition conditionnée à la configuration IIS de production → à vérifier (cf. action).
-* Impact potentiel : si endpoint exposé, XSS dans le contexte d'un opérateur consultant le statut. Impact limité tant que l'endpoint reste interne ; nul si non exposé.
+1. Que s'est-il passé dans le code ?
+Dans le composant tiers PHP-FPM, une injection de script (XSS) est possible dans la page de statut exposée par l'endpoint /status. Code du composant amont (PHP), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans php-src (SOUP au sens IEC 62304 §9), réf. GHSA-7qg2-v9fj-4mwv (GitHub Advisory php/php-src du 07/05/2026). Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+PHP-FPM est présent dans les images (docker/php) ; la version déployée est antérieure au correctif. L'exposition dépend de l'accessibilité de l'endpoint /status (non exposé en configuration par défaut) → à vérifier sur la config IIS de production.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Latence de montée PHP ; PHP 8.1 proche/hors support communautaire → la cadence de migration PHP conditionne la disponibilité du correctif.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Migration PHP hors 8.1 non encore planifiée ; veille récemment formalisée.
+
+6. Analyse finale
+Cause fondamentale : faille amont PHP-FPM + exposition conditionnelle de l'endpoint /status. Impact : XSS dans le contexte d'un opérateur si l'endpoint est exposé, nul sinon. Recommandations : vérifier/durcir la config /status (ne pas l'exposer), monter PHP, planifier la migration hors 8.1.
 ```
 
 **Raison du blocage/décision**
@@ -291,11 +351,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilités de l'OS hôte Windows Server + .NET Framework, environnement d'exécution / SOUP au sens IEC 62304 §5.7 — hors code OneOrtho.
-* Mécanisme : 62 CVE majoritairement d'élévation de privilèges, plus divulgation d'information, déni de service et contournement de fonction de sécurité (détail par CVE dans le MSRC).
-* Vecteur / conditions : la plupart nécessitent un accès local préalable (EoP, Security Feature Bypass) → exploitation directe à distance limitée.
-* Applicabilité OneOrtho : parc Windows Server 2016/2019/2022/2025 + .NET 3.5/4.7.2/4.8/4.8.1.
-* Impact potentiel : escalade locale ou fuite d'information sur l'hôte ; surface réelle réduite par le prérequis d'accès local.
+1. Que s'est-il passé dans le code ?
+Dans Windows Server et .NET Framework, 62 failles majoritairement d'élévation de privilèges, plus divulgation d'information, déni de service et contournement de fonction de sécurité (détail par CVE dans le MSRC). Code de l'OS / du framework amont (Microsoft), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilités publiées par Microsoft (Patch Tuesday du 12/05/2026) — environnement d'exécution / SOUP au sens IEC 62304 §5.7. Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Le parc n'a pas encore reçu la cumulative de mai (build < build cible) ; exposition interne (accès local requis pour la plupart des CVE).
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Cadence d'application des Patch Tuesday par AVA6 ; fenêtre de maintenance commune avec le Ticket 3.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Coordination OneOrtho/AVA6 sur le cycle de patch ; pas encore de vérification systématique du niveau de correctif.
+
+6. Analyse finale
+Cause fondamentale : failles OS/.NET amont + latence d'application du Patch Tuesday. Impact : escalade locale ou fuite d'information sur l'hôte, surface réelle réduite par le prérequis d'accès local. Recommandations : application groupée avec les RCE Critical (Ticket 3), suivi systématique du niveau de correctif.
 ```
 
 **Raison du blocage/décision**
@@ -346,11 +418,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilités du SGBD MariaDB Community Server (SOUP IEC 62304 §9), hors code OneOrtho.
-* Mécanisme : 13 CVE 2026, dont CVE-2026-49261 (CVSS 10.0), CVE-2026-48165/48163/44168 (8.0) et CVE-2026-32710 (8.6) ; détail technique dans community-server.md.
-* Vecteur / conditions : à confirmer par CVE dans la doc MariaDB ; le score 10.0 de CVE-2026-49261 suggère une exploitation sans authentification ni interaction.
-* Applicabilité OneOrtho : les 16 instances du parc sont en deçà des versions corrigées sur leurs 4 branches.
-* Impact potentiel : compromission ou indisponibilité de la base → atteinte intégrité/confidentialité/disponibilité des données applicatives. Facteur atténuant : accès réseau interne requis.
+1. Que s'est-il passé dans le code ?
+Dans le SGBD tiers MariaDB Community Server, 13 failles 2026 dont CVE-2026-49261 (CVSS 10.0), CVE-2026-48165/48163/44168 (8.0) et CVE-2026-32710 (8.6) ; détail technique par CVE dans community-server.md. Code du composant amont, non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilités publiées par MariaDB (SOUP au sens IEC 62304 §9). Faille amont, hors code OneOrtho. OneOrtho est concerné car MariaDB est le SGBD du portail.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Les 16 instances du parc sont en deçà des versions corrigées sur leurs 4 branches LTS ; exposition interne (MariaDB derrière le portail, non exposé Internet directement). Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Cadence de montée des instances MariaDB ; parc à 4 branches LTS multipliant l'effort de patch ; fenêtre de maintenance et sauvegarde préalable requises.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Stratégie de versionnement du parc (4 branches) non encore convergée ; suivi du fichier de référence MariaDB récemment intégré à la veille.
+
+6. Analyse finale
+Cause fondamentale : failles amont MariaDB + latence de patch + parc multi-branches. Impact : atteinte C/I/D des données applicatives (atténuée par l'accès réseau interne). Recommandations : montée unique de chaque branche vers la LTS de tête, accélération vu CVE-2026-49261 (CVSS 10.0), suivi automatisé du fichier MariaDB, réflexion sur la convergence des branches.
 ```
 
 **Raison du blocage/décision**
@@ -396,11 +480,23 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 **Analyse du bug**
 ```
-* Nature : vulnérabilité tierce d'@angular/common (SOUP IEC 62304 §9), aucun défaut du code OneOrtho.
-* Mécanisme : déni de service par épuisement mémoire (OOM) lors du formatage de nombres avec un paramètre digitsInfo malveillant.
-* Vecteur / conditions : valeur digitsInfo contrôlée par l'attaquant atteignant un pipe/format de nombre ; effet côté navigateur du client.
-* Applicabilité OneOrtho : @angular/common présent dans les 4 planificateurs ; modules livrés au navigateur → exposition Internet.
-* Impact potentiel : plantage de l'onglet/module côté client (disponibilité). Pas d'atteinte serveur ni de données. Surface limitée au poste client.
+1. Que s'est-il passé dans le code ?
+Dans le composant tiers @angular/common, un déni de service par épuisement mémoire (OOM) se produit lors du formatage de nombres avec un paramètre digitsInfo malveillant. Code du composant amont, non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans @angular/common (SOUP au sens IEC 62304 §9), réf. GHSA-p3vc-36g9-x9gr (Angular Security Advisory du 28/05/2026). Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Les versions déployées (20.3 et 21.2) sont antérieures au correctif ; composant présent dans les 4 planificateurs, livrés au navigateur → exposition Internet (DoS côté client). Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Latence de montée Angular ; 2 branches (20.3 / 21.2) à patcher.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Convergence des versions Angular non encore réalisée ; veille récemment formalisée.
+
+6. Analyse finale
+Cause fondamentale : faille amont @angular/common + latence de patch. Impact : plantage de l'onglet/module côté client (disponibilité), pas d'atteinte serveur ni de données. Recommandations : montée mutualisée avec le Ticket 4 (XSS Template/Component), convergence des versions Angular.
 ```
 
 **Raison du blocage/décision**
@@ -412,11 +508,16 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 ---
 
-## Spike 1 — Microsoft Defender (CVE-2026-41091 + CVE-2026-45498) — Investigation
+## Spike 1 — Microsoft Defender (CVE-2026-41091 + CVE-2026-45498) — Investigation [TERMINÉ]
+
+> **Résultat (juin 2026)** : investigation menée (`Get-MpComputerStatus`, parc complet). Defender actif sur tout le parc.
+> - **CVE-2026-41091 (moteur)** : `AMEngineVersion` 1.1.26050.11 ≥ 1.1.26040.8 sur tous les serveurs → **non applicable** (corrigée par auto-update). Pas de ticket de remédiation. Tracé en §3.3 du rapport.
+> - **CVE-2026-45498 (plateforme)** : `AMProductVersion` 4.18.1911.3 < 4.18.26040.7 sur **2 serveurs** ({{SRV-A}}, {{SRV-B}}) → **applicable** → ticket de remédiation **Ticket 9** ci-dessous. Reste du parc ≥ cible.
+> Clore le Spike avec ce résultat.
 
 **En-tête**
 - Résumé : `[SEC][Investigation][WindowsServer] CVE-2026-41091 + CVE-2026-45498 — Defender actif ? (Threat Intel 2026-05)`
-- Type : Spike / Investigation · Assigné : DevSecOps + équipe infrastructure · Échéance : 11/06/2026
+- Type : Spike / Investigation · Assigné : DevSecOps + équipe infrastructure · Échéance : 11/06/2026 · Statut : **Terminé**
 - Étiquettes : threat-intel, sec-2026-05, windows-server, investigation
 
 **Description**
@@ -439,13 +540,25 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 * Exposition : Interne (Defender s'exécute en local, traite des fichiers en entrée)
 ```
 
-**Analyse du bug**
+**Analyse du bug** (préliminaire — points 4 à 6 à finaliser après investigation)
 ```
-* Nature : vulnérabilités du moteur antivirus Microsoft Defender (SOUP / composant système), hors code OneOrtho.
-* Mécanisme : CVE-2026-41091 (Link Following → élévation de privilèges) et CVE-2026-45498 (déni de service) dans le Malware Protection Engine / Antimalware Platform.
-* Vecteur / conditions : exploitation lors du traitement d'un fichier malveillant par Defender ; les deux CVE sont au CISA KEV (exploitation active confirmée) depuis le 20/05/2026.
-* Applicabilité OneOrtho : conditionnée à la présence de Defender comme antivirus actif sur le parc → objet de cette investigation.
-* Impact potentiel : si Defender actif, escalade de privilèges (CVE-2026-41091) ou indisponibilité de la protection (CVE-2026-45498) sur l'hôte du portail.
+1. Que s'est-il passé dans le code ?
+Dans le moteur antivirus Microsoft Defender (Malware Protection Engine / Antimalware Platform), CVE-2026-41091 (Link Following → élévation de privilèges) et CVE-2026-45498 (déni de service) lors du traitement d'un fichier. Code du composant amont (Microsoft), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilités publiées par Microsoft, ajoutées au CISA KEV le 20/05/2026 (exploitation active). SOUP / composant système. Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Exposition conditionnée à la présence de Defender comme antivirus actif sur le parc Windows Server → objet de cette investigation. Si actif et non patché, dépendance SOUP exposée.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+À compléter après investigation (selon que Defender est l'AV actif et son niveau de mise à jour).
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+À compléter après investigation.
+
+6. Analyse finale
+À finaliser après investigation. Si Defender actif → faille amont AV exploitée activement (KEV) → remédiation prioritaire (auto-update Defender). Sinon → non applicable, documenter en §3.3 et clore.
 ```
 
 **Raison du blocage/décision**
@@ -486,13 +599,25 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 * Exposition : dépend du contexte d'appel des fonctions (à déterminer)
 ```
 
-**Analyse du bug**
+**Analyse du bug** (préliminaire — points 4 à 6 à finaliser après investigation)
 ```
-* Nature : vulnérabilités du runtime PHP (SOUP IEC 62304 §9), hors code OneOrtho.
-* Mécanisme : 4 advisories php-src du 07/05/2026 affectant des fonctions standard (corruption mémoire / lecture hors limites / DoS).
-* Vecteur / conditions : exploitable uniquement si la fonction concernée traite une entrée contrôlée par l'attaquant ; dépend de l'usage applicatif réel → objet de cette investigation.
-* Applicabilité OneOrtho : PHP présent (runtime backend Symfony). Usage des fonctions impactées à confirmer par recherche de code.
-* Impact potentiel : selon la fonction et l'usage, de nul (fonction non utilisée) à corruption mémoire / DoS du worker PHP. DOMNode::C14N() (Critique) à examiner en priorité si signatures XML utilisées.
+1. Que s'est-il passé dans le code ?
+Dans le runtime PHP, 4 failles affectant des fonctions standard : urldecode (GHSA-m8rr-4c36-8gq4), mb_convert_encoding (GHSA-74r9-qxhc-fx53), DOMNode::C14N (GHSA-4jhr-8w89-j733, Critique), php_mb_check_encoding (GHSA-wm6j-2649-pv75) — corruption mémoire / lecture hors limites / DoS. Code du composant amont (PHP), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilités publiées dans php-src (SOUP au sens IEC 62304 §9), GitHub Advisories du 07/05/2026. Faille amont, hors code OneOrtho.
+
+3. Pourquoi cette cause s'est-elle produite ?
+Exposition conditionnée à l'usage effectif des fonctions dans un contexte attaquable (entrée contrôlée) → objet de cette investigation. PHP présent comme runtime backend Symfony.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+À compléter après investigation (selon usage des fonctions et niveau de version PHP).
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+À compléter après investigation.
+
+6. Analyse finale
+À finaliser après investigation. Selon usage : si une fonction est utilisée dans un contexte attaquable → remédiation (montée PHP) P3 par défaut ; sinon → non applicable, documenter en §3.3 et clore. DOMNode::C14N (Critique) à examiner en priorité si signatures XML utilisées.
 ```
 
 **Raison du blocage/décision**
@@ -503,9 +628,74 @@ Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 lign
 
 ---
 
+## Ticket 9 — CVE-2026-45498 (plateforme Defender, 2 serveurs) — P3
+
+> Issu de la conclusion du Spike 1.
+
+**En-tête**
+- Résumé : `[SEC][P3][WindowsServer] CVE-2026-45498 — montée plateforme Defender sur 2 serveurs (Threat Intel 2026-05)`
+- Type : Sous-tâche de CICD-169 · Priorité : Medium · Assigné : DevSecOps + équipe infrastructure (+ AVA6) · Échéance : 06/07/2026
+- Étiquettes : threat-intel, sec-2026-05, windows-server, defender, infrastructure
+
+**Description**
+```
+Item issu de la revue mensuelle Threat Intelligence 2026-05, confirmé par le Spike 1.
+Source : CISA KEV + Microsoft MSRC.
+Vulnérabilité : CVE-2026-45498 — Microsoft Defender Antimalware Platform Denial of Service. Au CISA KEV (exploitation active).
+
+Action attendue : mettre à jour la plateforme antimalware Defender (AMProductVersion ≥ 4.18.26040.7) sur les 2 serveurs concernés, ET corriger le mécanisme d'auto-update plateforme défaillant (plateforme figée à 4.18.1911.3 = nov. 2019). Update-MpSignature ne met pas à jour la plateforme → passer par Windows Update / package plateforme, via AVA6 si le canal est bloqué.
+
+Critères d'acceptation :
+* [ ] AMProductVersion ≥ 4.18.26040.7 sur les 2 serveurs (relevé Get-MpComputerStatus après MAJ)
+* [ ] Mécanisme d'auto-update plateforme rétabli et vérifié sur les 2 serveurs
+* [ ] Supervision de AMProductVersion ajoutée (Zabbix) pour détecter toute future dérive
+* [ ] Ticket lié à CICD-169
+
+Traçabilité : rapport mensuel <lien Confluence 2026-05> — décision §6 ligne 7. Issu du Spike 1.
+```
+
+**Environnement**
+```
+* Composant impacté : Microsoft Defender Antimalware Platform (AMProductVersion)
+* Serveurs concernés : {{SRV-A}}, {{SRV-B}} — AMProductVersion actuelle 4.18.1911.3 (< cible 4.18.26040.7)
+* Reste du parc : AMProductVersion ≥ cible (non concerné)
+* Exposition : Interne (Defender s'exécute en local)
+```
+
+**Analyse du bug**
+```
+1. Que s'est-il passé dans le code ?
+Dans la plateforme antimalware Microsoft Defender (4.18.x), une faille permet un déni de service (CVE-2026-45498). Code du composant amont (Microsoft), non du code OneOrtho.
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée par Microsoft, ajoutée au CISA KEV le 20/05/2026 (exploitation active). SOUP / composant système. Faille amont.
+
+3. Pourquoi cette cause s'est-elle produite ?
+2 serveurs ont une plateforme Defender figée à 4.18.1911.3 (novembre 2019), antérieure à la version corrigée 4.18.26040.7, alors que le moteur (1.1.x) et les signatures, eux, sont à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+Le mécanisme de mise à jour de la PLATEFORME Defender (distinct du moteur/signatures, livré via Windows Update) est défaillant ou désactivé sur ces 2 serveurs : la plateforme n'a pas été mise à jour depuis ~6 ans.
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+Absence de supervision du niveau de plateforme Defender (AMProductVersion) sur le parc : ces 2 serveurs sont sortis du cycle de mise à jour plateforme sans détection.
+
+6. Analyse finale
+Cause fondamentale : auto-update de la plateforme Defender cassé sur 2 serveurs (plateforme figée 2019). Au-delà de CVE-2026-45498, ces 2 serveurs accumulent ~6 ans de CVE plateforme Defender non corrigées. Recommandations : mettre à jour la plateforme, RÉPARER le mécanisme d'auto-update (cause racine), superviser AMProductVersion dans Zabbix pour détecter toute dérive future, étendre le contrôle à l'ensemble du parc.
+```
+
+**Raison du blocage/décision**
+```
+* Priorité retenue : P3 — la CVE est au KEV mais de type DoS / sévérité MSRC Low, exposition interne. Le KEV justifie de ne pas reléguer en P4. SLA J+30 (06/07/2026).
+* Décision particulière : la remédiation va au-delà de la CVE — réparer l'auto-update plateforme (cause racine) qui expose les 2 serveurs à un backlog de CVE plateforme.
+* Dépendances / blocages : Update-MpSignature insuffisant (ne touche pas la plateforme) → dépend du canal Windows Update / d'AVA6 ; fenêtre de maintenance des 2 serveurs.
+```
+
+---
+
 ## Items SANS ticket (rappel)
 
 | Item | Raison |
 |------|--------|
 | CVE-2026-45063 (Symfony X509Authenticator) | Levé après investigation — brique non utilisée + version corrigée. Voir §3.3 du rapport |
 | CVE-2026-48805 + 48806 + 46636 (Twig sandbox) | Levé après investigation — sandbox non utilisé + version corrigée. Voir §3.3 du rapport |
+| CVE-2026-41091 (Defender moteur, Link Following) | Levé après investigation (Spike 1) — moteur ≥ 1.1.26040.8 sur tout le parc. Voir §3.3 du rapport |

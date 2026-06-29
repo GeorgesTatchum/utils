@@ -60,12 +60,27 @@ Traçabilité : rapport mensuel {{lien Confluence}} — décision §6 ligne {{#}
 ```
 
 ### Analyse du bug
+
+Structure imposée par le mode opératoire OneOrtho (méthode des « 5 pourquoi » / analyse de cause racine, 6 points). Adaptation pour une vulnérabilité tierce : « le bug » est la faille du composant amont (SOUP), pas un défaut du code OneOrtho — la chaîne de causes porte sur l'exposition via la dépendance et la latence de mise à jour. Ne pas fabriquer de cause « erreur humaine » interne pour une CVE amont. Points 4 et 5 facultatifs.
+
 ```
-* Nature : vulnérabilité d'un composant tiers ({{composant}}), SOUP au sens IEC 62304 §9 — aucun défaut du code applicatif OneOrtho.
-* Mécanisme : {{description technique de la faille, d'après l'advisory}}.
-* Vecteur / conditions : {{comment elle s'exploite, prérequis ; "à confirmer dans l'advisory" si non documenté}}.
-* Applicabilité OneOrtho : {{composant présent dans composer.lock / package.json / parc, version, exposition réseau}}.
-* Impact potentiel : {{confidentialité / intégrité / disponibilité ; effet de bord DM éventuel}}.
+1. Que s'est-il passé dans le code ?
+{{Mécanisme technique de la faille dans le composant tiers {{composant}} {{version}}, d'après l'advisory. Seul champ où le détail technique est exposé. Préciser : code du composant amont, non du code OneOrtho.}}
+
+2. Pourquoi le bug s'est-il produit ?
+Vulnérabilité publiée dans le composant tiers {{composant}} (SOUP au sens IEC 62304 §9), réf. {{CVE/GHSA}} ({{advisory}}). Ni correction ni fonctionnalité OneOrtho : faille amont. OneOrtho est concerné car le composant est embarqué comme dépendance.
+
+3. Pourquoi cette cause s'est-elle produite ?
+La version déployée ({{version}}) est antérieure à la version corrigée ({{version cible}}) ; composant utilisé par {{produit}}, exposition {{Internet/Interne}}. Dépendance SOUP non encore mise à jour.
+
+4. Pourquoi la cause profonde s'est-elle produite ? (Facultatif)
+{{Latence de mise à jour : cadence de patch des dépendances, fenêtre de maintenance, automatisation de montée de version absente/partielle.}}
+
+5. Pourquoi la cause fondamentale s'est-elle produite ? (Facultatif)
+{{Facteurs organisationnels : maturité de la gestion des SOUP, veille/SBOM récemment instaurés, priorisation, convergence des versions.}}
+
+6. Analyse finale
+{{Cause fondamentale (faille tierce + latence de patch) + impact (C/I/D, effet de bord DM éventuel) + recommandations : montée de version, automatisation Dependabot/Snyk, convergence des versions, SBOM. Si non réalisable, analyse à transférer à l'équipe qualité.}}
 ```
 
 ### Raison du blocage/décision

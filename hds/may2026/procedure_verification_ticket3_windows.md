@@ -109,6 +109,61 @@ last(/{HOST}/win.build) < "20348.5139"
 - Si Zabbix couvre tout le parc avec le build complet : tu disposes de la vue autoritative toi-même → le mail AVA6 devient une **demande d'application ciblée** sur la liste des serveurs sous le build cible (et non une demande de confirmation parc).
 - Si l'UBR n'est pas encore collecté : configurer l'item d'abord (toi ou via AVA6), sinon rester sur la méthode échantillon §4 + demande de confirmation.
 
+### Vérifier dans l'interface Zabbix si la donnée est collectée
+
+Deux écrans : **Latest data** (la donnée remonte-t-elle ?) et **Items** de l'hôte (l'item est-il configuré ?). Les noms de menus diffèrent selon la version.
+
+**1. La donnée est-elle collectée ? — Monitoring → Latest data**
+- Filtrer par Host group / Host = un serveur Windows ; rechercher `OS`, `build`, `version`.
+- Lire la valeur :
+  - `system.sw.os` avec `... 10.0.20348` **sans 4ᵉ nombre** → build majeur présent mais **pas l'UBR** (`.5139`) → insuffisant.
+  - valeur complète `20348.5139` (item `registry.data[...UBR]` ou `win.build`) → UBR collecté, exploitable directement.
+
+**2. Quels items sont configurés ? — Items de l'hôte**
+- Zabbix 6.x : `Configuration → Hosts → <hôte> → Items`.
+- Zabbix 7.0 : `Data collection → Hosts → <hôte> → Items` (menu « Configuration » renommé « Data collection »).
+- Filtrer par **Key** : `system.sw.os` (template standard, sans UBR), `registry.data` (UBR, seulement si ajouté), `win.build` (UserParameter custom).
+
+**3. Template lié** — colonne **Templates** de l'hôte : « Windows by Zabbix agent » fournit `system.sw.os` mais **pas l'UBR** par défaut (template lié ≠ UBR disponible).
+
+**4. Tester un item en direct** — ouvrir/créer l'item → bouton **Test → Get value** : Zabbix interroge l'agent en live (utile pour valider `registry.data[...,UBR]` avant déploiement sur le parc).
+
+**Conclusion de la vérification :**
+
+| Constat | Signification |
+|---------|---------------|
+| Build complet `xxxxx.UBR` sur tous les hôtes | Collecté → exploiter directement |
+| Seulement `system.sw.os` (sans UBR) | UBR non collecté → ajouter l'item, ou utiliser le script §4 ter |
+| Pas d'item OS / hôte absent | Agent non déployé ou template non lié |
+
+Rappels : accès à l'instance Zabbix requis (OneOrtho ou AVA6 ?) ; agent présent sur **tous** les serveurs pour une vue parc complète, sinon compléter avec le script §4 ter.
+
+## 4 ter. Vérification distante parallèle (un identifiant par serveur)
+
+Pour éviter de parcourir les serveurs un à un : exécuter la vérification **en parallèle** sur tout le parc en quelques secondes, chaque serveur étant joint avec **son propre identifiant**. Script prêt à l'emploi : `utils/hds/may2026/verif_builds_parallele.ps1`.
+
+### Principe
+- PowerShell 7+ sur le poste d'exécution → `ForEach-Object -Parallel` (exécution concurrente, `-ThrottleLimit 30`).
+- Un identifiant **chiffré par serveur** (pas de mot de passe en clair) :
+  - Simple (poste admin, usage ponctuel) : `Get-Credential | Export-CliXml -Path ...\SRV.xml` — chiffrement DPAPI, déchiffrable uniquement par le même utilisateur sur la même machine.
+  - Robuste (équipe / automatisation) : module **SecretManagement + SecretStore** (ou coffre type CyberArk) — récupérer chaque identifiant par nom.
+- Lecture distante du build via WinRM (`Invoke-Command` → registre `CurrentBuild` + `UBR`), comparaison automatique au build cible §2, restitution d'un tableau Patché / NON patché / Injoignable + export CSV probant.
+
+### Pré-requis
+- WinRM joignable sur les cibles (port 5985/5986) : `Test-WSMan <serveur>`. Activation côté cible : `Enable-PSRemoting`.
+- Comptes **locaux** (hors domaine) : déclarer les cibles en TrustedHosts sur le poste d'exécution —
+  `Set-Item WSMan:\localhost\Client\TrustedHosts -Value 'SRV-01,SRV-02' -Concatenate -Force` (ou WinRM HTTPS avec certificats).
+- Droits administrateur local par serveur via l'identifiant fourni.
+
+### Mise en œuvre
+1. Préparer un `.xml` chiffré par serveur (étape 0 du script).
+2. Renseigner l'inventaire CSV `ComputerName,CredFile`.
+3. Lancer `verif_builds_parallele.ps1` → tableau consolidé + `resultat_builds_2026-05.csv` (à archiver comme pièce probante, cf. bordereau §4).
+
+### Limites
+- L'**application** du correctif Windows (cumulative) ne se déclenche pas par une simple commande distante : elle passe par Windows Update / WSUS, donc par AVA6 (§5). Ce script couvre la **vérification** parallèle, pas le patch lui-même. (Un déclenchement distant via le module `PSWindowsUpdate` est possible si OneOrtho exploite ses propres serveurs, mais le patching reste de la responsabilité AVA6.)
+- Si **Zabbix** collecte déjà le build du parc (§4 bis), c'est encore plus direct et sans gestion d'identifiants — le préférer quand c'est disponible.
+
 ## 5. Si patch manquant → demande à AVA6
 
 Constituer une demande à AVA6 (ticket exploitant / mail tracé) contenant :

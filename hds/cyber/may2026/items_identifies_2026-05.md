@@ -10,12 +10,12 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 | Indicateur | Valeur |
 |-----------|--------|
 | Total items examinés | 218 |
-| Applicables OneOrtho | 10 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (13 CVE) |
-| Non applicables | 104 (Symfony mailer/notifier/html-sanitizer/json-path/ux, Angular platform-server/service-worker/HttpTransferCache, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée, 55 advisories CISA ICS dont 2 ICSMA, items hors périmètre Docker/Nginx/VS Code) + 2 items levés après investigation (X509 + Twig sandbox 3 CVE) |
-| À investiguer | 3 (groupe 4 PHP advisories, Microsoft Defender x2) |
+| Applicables OneOrtho | 9 individuels + 1 groupé Windows Server (62 CVE EoP) + 1 groupé MariaDB (13 CVE) |
+| Non applicables | 105 (Symfony mailer/notifier/html-sanitizer/json-path/ux, Angular platform-server/service-worker/HttpTransferCache, PHP SOAP, KEV non stack, CERT-FR non stack, MariaDB CVE-2026-21968 déjà patchée, 55 advisories CISA ICS dont 2 ICSMA, items hors périmètre Docker/Nginx/VS Code) + 3 items levés après investigation (X509 + Twig sandbox 3 CVE + Defender moteur CVE-2026-41091) |
+| À investiguer | 1 (groupe 4 PHP advisories) |
 | Priorité P1 | 0 (aucune des CVE applicables n'est en KEV actif sur composant utilisé) |
 | Priorité P2 | 9 (6 RCE Critical Windows Server + 2 CVE Symfony 20/05 + 1 Angular XSS Template/Component) |
-| Priorité P3 | 7 (PHP-FPM XSS, Angular DoS digitsInfo, MariaDB CVSS ≥ 7 : CVE-2026-49261/48165/48163/44168/32710) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
+| Priorité P3 | 8 (PHP-FPM XSS, Angular DoS digitsInfo, Defender plateforme CVE-2026-45498 sur 2 serveurs, MariaDB CVSS ≥ 7 : CVE-2026-49261/48165/48163/44168/32710) + groupage Windows Server EoP/DoS/InfoDisc (62 CVE) |
 | Priorité P4 | 1 groupé (8 CVE MariaDB CVSS < 7 : CVE-2026-44173/44172/44171/44170/44169/35549/34303/3494) |
 
 ## 3.2 Détail des items applicables
@@ -116,43 +116,33 @@ Méthode : croisement des items remontés par les sources §2 avec les composant
 | Échéance | J+30 (par défaut P3) |
 | Responsable | DevSecOps + équipe infrastructure |
 
-### Item 7 : CVE-2026-41091
+### Item 7 : CVE-2026-41091 — levé après investigation (non applicable)
 
 | Champ | Valeur |
 |-------|--------|
 | Titre | Microsoft Defender Link Following Vulnerability |
 | Source | CISA KEV + Microsoft MSRC |
-| Date publication MSRC | 19/05/2026 |
-| Date ajout KEV | 20/05/2026 |
-| Sévérité | Important (MSRC), Elevation of Privilege |
-| Exploité activement (KEV) | **Oui** — ajoutée au catalogue KEV le 20/05/2026 |
-| Composant impacté | Microsoft Malware Protection Engine (Microsoft Defender Antivirus) |
-| Produit concerné | À investiguer : Defender est-il actif sur les serveurs Windows OneOrtho ? Configuration probable par défaut sur Windows Server récents |
-| Exposition | Interne (Defender s'exécute en local, mais traite des fichiers reçus en entrée) |
-| Priorité retenue | À investiguer. Si Defender actif sur les serveurs OneOrtho → **P2** (KEV + EoP via Defender). Reclassé en non applicable si Defender n'est pas l'antivirus utilisé |
-| Action décidée | Vérifier la configuration antivirus sur les serveurs Windows Server du parc. Si Defender, appliquer le correctif immédiatement (auto-update Defender) |
-| Ticket remédiation | À créer en Jira (investigation), lié à CICD-169 |
-| Échéance | 11/06/2026 (investigation) |
-| Responsable | DevSecOps + équipe infrastructure |
+| Composant impacté | Microsoft Malware Protection Engine (moteur Defender), version corrigée ≥ 1.1.26040.8 |
+| Investigation | Spike 1, relevé `Get-MpComputerStatus` sur l'ensemble du parc (juin 2026) |
+| Conclusion | **Non applicable** : `AMEngineVersion` = 1.1.26050.11 ≥ 1.1.26040.8 sur tous les serveurs (moteur Defender à jour via auto-update). Aucune remédiation. Voir §3.3 « Items levés après investigation » |
 
-### Item 8 : CVE-2026-45498
+### Item 8 : CVE-2026-45498 — applicable (2 serveurs)
 
 | Champ | Valeur |
 |-------|--------|
 | Titre | Microsoft Defender Denial of Service Vulnerability |
 | Source | CISA KEV + Microsoft MSRC |
-| Date publication MSRC | 19/05/2026 |
-| Date ajout KEV | 20/05/2026 |
-| Sévérité | Low (MSRC) mais ajoutée à KEV |
-| Exploité activement (KEV) | **Oui** — KEV le 20/05/2026 |
-| Composant impacté | Microsoft Defender Antimalware Platform |
-| Produit concerné | À investiguer : idem Item 7 |
+| Date publication MSRC | 19/05/2026 — Date ajout KEV | 20/05/2026 |
+| Sévérité | Low (MSRC) mais ajoutée à KEV (exploitation active) |
+| Exploité activement (KEV) | **Oui** |
+| Composant impacté | Microsoft Defender Antimalware Platform — version corrigée ≥ 4.18.26040.7 |
+| Produit concerné | Infrastructure d'exécution — **2 serveurs Windows** ({{SRV-A}}, {{SRV-B}}) avec `AMProductVersion` = 4.18.1911.3 (< cible). Reste du parc ≥ cible (non concerné) |
 | Exposition | Interne |
-| Priorité retenue | À investiguer comme Item 7. Si Defender actif → P3 (DoS + KEV mais sévérité MSRC Low, exposition interne) |
-| Action décidée | Idem Item 7 — traitement groupé |
-| Ticket remédiation | À créer en Jira (investigation), lié à CICD-169 |
-| Échéance | 11/06/2026 |
-| Responsable | DevSecOps + équipe infrastructure |
+| Priorité retenue | **P3** (KEV mais DoS / sévérité MSRC Low, exposition interne). KEV justifie de ne pas reléguer en P4 |
+| Action décidée | Mettre à jour la plateforme Defender (≥ 4.18.26040.7) sur les 2 serveurs **et corriger le mécanisme d'auto-update plateforme défaillant** (plateforme figée à la version de nov. 2019). `Update-MpSignature` ne met pas à jour la plateforme → passer par Windows Update / AVA6 |
+| Ticket remédiation | À créer en Jira, lié à CICD-169 (cf. Ticket 9 du fichier tickets) |
+| Échéance | J+30 (06/07/2026) |
+| Responsable | DevSecOps + équipe infrastructure (+ AVA6) |
 
 ### Item 9 : CVE MariaDB Community Server 2026 — analyse par version du parc
 
@@ -280,6 +270,7 @@ Items initialement classés « à investiguer » ou applicables, reclassés non 
 |----|-----------|---------------|------------|
 | CVE-2026-45063 (X509Authenticator) | `symfony/security-http` | Tech Lead Symfony (juin 2026) | **Non applicable.** Justification primaire : la brique `X509Authenticator` du bundle Security HTTP n'est pas utilisée par OneSoftware. Justification secondaire : selon le Tech Lead la version déployée (5.4.53) ne contient plus la faille. **Écart à réconcilier** : le composer.lock du repo indique `symfony/security-http` v5.4.47 — probablement un composer.lock local non synchronisé avec la prod. La conclusion « non applicable » repose sur la justification primaire (non-usage), indépendante de la version. |
 | CVE-2026-48805 + CVE-2026-48806 + CVE-2026-46636 (Twig sandbox bypass) | `twig/twig` | Tech Lead Symfony (juin 2026) | **Non applicable.** Justification primaire : le sandbox Twig n'est pas utilisé pour exécuter des templates fournis par utilisateur. Justification secondaire : selon le Tech Lead la version déployée (3.27.1) ne contient plus les failles. **Écart à réconcilier** : le composer.lock du repo indique `twig/twig` v3.24.0 — composer.lock local probablement non synchronisé avec la prod. Conclusion fondée sur la justification primaire (non-usage du sandbox), indépendante de la version. |
+| CVE-2026-41091 (Microsoft Defender Link Following) | Microsoft Malware Protection Engine (moteur Defender) | Spike 1 — relevé `Get-MpComputerStatus` sur l'ensemble du parc (juin 2026) | **Non applicable.** `AMEngineVersion` = 1.1.26050.11 ≥ version corrigée 1.1.26040.8 sur tous les serveurs (moteur Defender à jour via auto-update). Aucune remédiation requise. (La CVE-2026-45498 sur la plateforme Defender, elle, reste applicable sur 2 serveurs — cf. §3.2 Item 8.) |
 
 > Action de fond à porter en §7 : réconcilier le composer.lock du repo avec les versions réellement déployées en production (écart constaté sur `twig/twig` et `symfony/security-http`). Tant que l'écart subsiste, ne s'appuyer que sur les justifications de non-usage, pas sur les numéros de version.
 
@@ -358,7 +349,7 @@ Note : les 4 items "À investiguer" sont reclassés en items applicables P3 par 
 | CVE-2026-0300 | 06/05/2026 | Palo Alto PAN-OS | À confirmer infra réseau, écarté par défaut |
 | CVE-2026-31431 | 01/05/2026 | Linux Kernel | OS hôte = Windows Server, pas Linux en prod |
 
-Les 2 CVE KEV applicables (CVE-2026-41091 et CVE-2026-45498 Microsoft Defender) figurent en §3.2 (Items 7 et 8).
+Les 2 CVE Microsoft Defender (CVE-2026-41091 et CVE-2026-45498), initialement ajoutées au KEV, ont été investiguées (Spike 1) : CVE-2026-41091 (moteur) est non applicable (moteur ≥ corrigé partout, voir §3.3) ; CVE-2026-45498 (plateforme) reste applicable sur 2 serveurs (§3.2 Item 8).
 
 ### Items hors périmètre — non comptés en items applicables
 
