@@ -643,7 +643,7 @@ Item issu de la revue mensuelle Threat Intelligence 2026-05, confirmé par le Sp
 Source : CISA KEV + Microsoft MSRC.
 Vulnérabilité : CVE-2026-45498 — Microsoft Defender Antimalware Platform Denial of Service. Au CISA KEV (exploitation active).
 
-Action attendue : mettre à jour la plateforme antimalware Defender (AMProductVersion ≥ 4.18.26040.7) sur les 2 serveurs concernés, ET corriger le mécanisme d'auto-update plateforme défaillant (plateforme figée à 4.18.1911.3 = nov. 2019). Update-MpSignature ne met pas à jour la plateforme → application interne via Windows Update / package plateforme (MCO OS OneOrtho), en réparant le canal de mise à jour bloqué.
+Action attendue : mettre à jour la plateforme antimalware Defender (AMProductVersion ≥ 4.18.26040.7) sur les 2 serveurs concernés, ET corriger le mécanisme d'auto-update plateforme défaillant (plateforme figée à 4.18.1911.3 = nov. 2019). Update-MpSignature ne met pas à jour la plateforme → application interne via Windows Update / package plateforme (MCO OS OneOrtho), en réparant le canal de mise à jour bloqué. **Mode opératoire détaillé : `procedure_spike1_defender.md` §6 (Voie A canal réparable / Voie B hors-ligne / validation / fallback risque).**
 
 Critères d'acceptation :
 * [ ] AMProductVersion ≥ 4.18.26040.7 sur les 2 serveurs (relevé Get-MpComputerStatus après MAJ)

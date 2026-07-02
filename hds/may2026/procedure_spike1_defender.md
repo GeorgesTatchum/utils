@@ -73,16 +73,85 @@ Invoke-Command -ComputerName $serveurs -ScriptBlock {
 | Defender **actif** + une version **< cible** | **Applicable** | Forcer la mise à jour (§6), puis créer le(s) ticket(s) de remédiation : CVE-2026-41091 → P2 (KEV + EoP), CVE-2026-45498 → P3 (KEV + DoS, sévérité MSRC Low) |
 | Auto-update **inactif/défaillant** | À corriger en priorité | Réactiver l'auto-update Defender (cause racine de la latence), puis re-vérifier |
 
-## 6. Si version < cible → forcer la mise à jour
+## 6. Traitement des serveurs applicables (Ticket 9)
+
+Résultat de l'investigation (juin 2026) : **moteur à jour partout** (`AMEngineVersion` 1.1.26050.11 ≥ 1.1.26040.8 → CVE-2026-41091 non applicable), mais **2 serveurs** avec `AMProductVersion` **4.18.1911.3** (nov. 2019) < 4.18.26040.7 → **CVE-2026-45498 applicable** sur ces 2 serveurs.
+
+**Attention** : `Update-MpSignature` met à jour signatures + moteur (1.1.x), **pas la plateforme** (4.18.x). La plateforme se met à jour **via Windows Update**. Une plateforme figée à 2019 = canal de mise à jour cassé (probablement les mêmes serveurs isolés que le Ticket 3).
+
+### Voie A — canal Windows Update réparable (recommandée)
+
+À lancer en PowerShell **administrateur** sur le serveur (compatible WS2016).
+
+**A.1 Diagnostiquer la cause**
+```powershell
+# a) Un WSUS est-il imposé ?
+Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -EA SilentlyContinue |
+  Select-Object WUServer, WUStatusServer
+Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -EA SilentlyContinue |
+  Select-Object UseWUServer, NoAutoUpdate
+
+# b) Proxy WinHTTP utilisé par Windows Update / Defender
+netsh winhttp show proxy
+
+# c) Sortie vers Microsoft ?
+Test-NetConnection windowsupdate.microsoft.com -Port 443
+Test-NetConnection www.microsoft.com -Port 443
+```
+Lecture : `WUServer` renseigné + `UseWUServer=1` = forcé vers un WSUS (down → rien ne descend) · `netsh` en « accès direct » alors qu'un proxy est requis = pas de sortie · `Test-NetConnection` `TcpTestSucceeded : False` = blocage réseau (correction réseau, pas serveur).
+
+**A.2 Corriger selon la cause**
+
+*WSUS imposé et injoignable → basculer en accès direct Microsoft Update*
+```powershell
+Set-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU' -Name UseWUServer -Value 0
+Restart-Service wuauserv
+```
+Si le pointage vient d'une **GPO**, il reviendra au prochain `gpupdate` → corriger la GPO (ou sortir le serveur de son périmètre). Retrait complet du pointage local :
+```powershell
+Remove-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate' -Name WUServer,WUStatusServer -EA SilentlyContinue
+Restart-Service wuauserv
+```
+
+*Proxy requis mais absent → le renseigner (adresse+port récupérés, non calculés)*
+```powershell
+# option 1 : réutiliser le proxy déjà connu de la session / IE
+Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' |
+  Select-Object ProxyEnable, ProxyServer, AutoConfigURL
+netsh winhttp import proxy source=ie
+# option 2 : le poser manuellement si le proxy d'entreprise est connu
+netsh winhttp set proxy proxy-server="http=proxy.corp:3128;https=proxy.corp:3128" bypass-list="<local>"
+# annuler un proxy erroné :
+netsh winhttp reset proxy
+```
+Si aucune source n'a de proxy et pas d'accès sortant → serveur **isolé par conception** (décision réseau à confirmer auprès de qui gère la sortie / le pare-feu) → passer en **Voie B**.
+
+**A.3 Forcer la détection + mise à jour, puis vérifier**
+```powershell
+Restart-Service wuauserv
+(New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow()
+& "C:\Program Files\Windows Defender\MpCmdRun.exe" -SignatureUpdate
+Get-MpComputerStatus | Select-Object AMProductVersion, AMEngineVersion
+```
+`AMProductVersion` doit monter ≥ 4.18.26040.7 (le rollout plateforme peut prendre quelques minutes/heures après rétablissement du canal → re-vérifier).
+
+> Bénéfice : réparer le canal une seule fois fait redescendre **la plateforme Defender ET la cumulative OS** (Ticket 3), même cause racine. À privilégier.
+
+### Voie B — serveur isolé / canal non réparable rapidement
+
+Mise à jour de plateforme **hors-ligne** : récupérer le package « Update for Microsoft Defender Antivirus antimalware platform » sur le Microsoft Update Catalog (rechercher *antimalware platform*, version x64 de la version d'OS), le copier sur le serveur et l'exécuter. Puis re-vérifier `AMProductVersion`.
+Solution pérenne : pointer le serveur vers un WSUS/SCCM qui synchronise les mises à jour Defender.
+
+### Validation
 
 ```powershell
-# Met à jour signatures + moteur Defender
-Update-MpSignature
-
-# Re-vérifier ensuite
-Get-MpComputerStatus | Select-Object AMEngineVersion, AMProductVersion
+Get-MpComputerStatus | Select-Object AMProductVersion   # doit être >= 4.18.26040.7
 ```
-Si la mise à jour n'aboutit pas (proxy, WSUS, connectivité), traiter en interne (MCO OS OneOrtho) : rétablir le canal de mise à jour Windows, appliquer la dernière plateforme/moteur Defender sur les serveurs concernés + confirmer les versions atteintes. Référencer CICD-169.
+Conserver la sortie **avant/après** par serveur → pièce probante du Ticket 9. Clôturer quand les 2 serveurs sont ≥ cible.
+
+### Fallback — acceptation de risque documentée
+
+Si la Voie B est impraticable à court terme sur un serveur vraiment isolé : CVE-2026-45498 étant un **DoS (MSRC Low)** à exposition **interne**, une **acceptation de risque temporaire** documentée (décidée avec le Responsable Numérique, avec échéance de correction) est défendable — sans laisser l'item ouvert sans décision écrite (c'est au KEV). Tracer en parallèle la réparation du canal comme action de fond.
 
 ## 7. Conclusion du Spike et traçabilité
 
