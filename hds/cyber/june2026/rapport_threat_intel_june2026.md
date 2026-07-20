@@ -15,11 +15,11 @@
 
 ## 1. Résumé exécutif
 
-Environ 495 items examinés sur la période 01/06 au 30/06/2026 (dont 220 CVE MSRC de juin et 177 CVE distinctes Dependabot).
-Applicables : 3 items Angular (Hip3D + KneeMadison), 2 items SCA runtime (tinymce, mathjs), le batch Node.js du 18/06 (présent sur les serveurs), et 4 groupes (13 CVE Critiques Windows Server, 96 CVE Important Windows Server, 2 lots chaîne de build Dependabot par Tech Lead - one-platform et modules Angular). Les 400 alertes Dependabot ont été triées par portée (runtime livré au navigateur contre build hors ligne) via le flag `dev` des lockfiles : 45 alertes runtime évaluées individuellement, 355 alertes build regroupées ; lodash, d'abord classé runtime, est reclassé build (dev-only, Item 6c). MariaDB : 0 nouvelle CVE en juin ; les 13 CVE de mai restent en remédiation (montée non faite, parc inchangé), suivies au §5 hors décompte des items de juin.
+Environ 545 items examinés sur la période 01/06 au 30/06/2026 (dont 220 CVE MSRC de juin, 177 CVE distinctes Dependabot et 50 advisories CISA ICS/ICSMA). CISA ICS/ICSMA a été consultée (curl) : 0 applicable, mais 3 advisories DICOM (DCMTK, OHIF, pydicom/pynetdicom) ont été vérifiés non applicables car OneOrtho utilise d'autres implémentations DICOM (nanodicom PHP + nifti-reader-js).
+Applicables : 3 items Angular (Hip3D + KneeMadison), 2 items SCA runtime (tinymce ; mathjs, requalifié P4 non exploitable après investigation), le batch Node.js du 18/06 (présent sur les serveurs), et 4 groupes (13 CVE Critiques Windows Server, 96 CVE Important Windows Server, 2 lots chaîne de build Dependabot par Tech Lead - one-platform et modules Angular). Les 400 alertes Dependabot ont été triées par portée (runtime livré au navigateur contre build hors ligne) via le flag `dev` des lockfiles : 45 alertes runtime évaluées individuellement, 355 alertes build regroupées ; lodash, d'abord classé runtime, est reclassé build (dev-only, Item 6c). MariaDB : 0 nouvelle CVE en juin ; les 13 CVE de mai restent en remédiation (montée non faite, parc inchangé), suivies au §5 hors décompte des items de juin.
 Priorité maximale : P2, aucun P1, car aucune CVE applicable au stack n'est en KEV actif (0 sur 23 KEV de juin, 0 sur 109 CVE MSRC de périmètre, 0 sur 177 CVE Dependabot). La priorité traduit la criticité intrinsèque de chaque item ; le statut de remédiation ci-dessous indique le risque réellement résiduel.
 Statut de remédiation au 06/07/2026 : les deux items MSRC (Critique et Important) sont **corrigés sur 16 des 19 serveurs** (au build du Patch Tuesday de juin), et l'item Microsoft Defender de mai (CVE-2026-45498) est clôturé. 3 serveurs résiduels : WEBPRODDEDIENNE (WS2025, resté au build de mai malgré un statut « patché »), WEBPRODGLOBALD et WEBPRODI2B (WS2016, planifiés). La priorité P2 des CVE Windows reflète leur gravité ; le risque résiduel se concentre sur ces 3 serveurs. Restent entièrement à traiter : montées Angular (Hip3D/KneeMadison), tinymce, mathjs, Node.js (14 instances ligne 22 < 22.23.0, plus GLOBALD en Node 16 EOL), MariaDB (report mai) et les deux lots build Dependabot.
-Décisions clés : montées Angular / tinymce / mathjs (P2, échéance 20/07) ; montée des 3 serveurs Windows résiduels au build de juin pour solder les items MSRC ; campagnes des deux lots build Dependabot (P4, one-platform et modules Angular, Tech Leads distincts) ; montée Node.js ligne 22 vers 22.23.0 et traitement du serveur GLOBALD en Node 16 EOL ; accélération de la montée MariaDB (CVE-2026-49261 CVSS 10.0, toujours applicable sur 16 instances). Point d'attention du mois : CVE-2026-47291 (Windows HTTP.sys, RCE Critique) sur le composant noyau exposé derrière IIS, corrigée sur 16 des 19 serveurs ; et présence d'un runtime Node.js en fin de vie (16.13.2) sur GLOBALD prod.
+Décisions clés : montées Angular / tinymce (P2, échéance 20/07) ; montée d'hygiène mathjs (P4, non exploitable après investigation du chemin de code) ; montée des 3 serveurs Windows résiduels au build de juin pour solder les items MSRC ; campagnes des deux lots build Dependabot (P4, one-platform et modules Angular, Tech Leads distincts) ; montée Node.js ligne 22 vers 22.23.0 et traitement du serveur GLOBALD en Node 16 EOL ; accélération de la montée MariaDB (CVE-2026-49261 CVSS 10.0, toujours applicable sur 16 instances). Point d'attention du mois : CVE-2026-47291 (Windows HTTP.sys, RCE Critique) sur le composant noyau exposé derrière IIS, corrigée sur 16 des 19 serveurs ; et présence d'un runtime Node.js en fin de vie (16.13.2) sur GLOBALD prod.
 
 ---
 
@@ -33,7 +33,7 @@ Décisions clés : montées Angular / tinymce / mathjs (P2, échéance 20/07) ; 
 | NVD / CVE | ☐ | - | - | Consultée indirectement via advisories par composant |
 | CERT-FR (ANSSI) | ✔ | 30/06/2026 | 0 nouveau stack | Juin complet consulté via les archives `/avis/` (pages 1 à 17, AVI-0668 à 0819) et `/alerte/`, le flux RSS ne couvrant qu'une fenêtre glissante. Avis : recoupent en canal secondaire le Patch Tuesday MSRC (AVI-0728 Windows, AVI-0729 .NET) et le batch Node.js (AVI-0786). Alertes : 0 nouvelle en juin ; ALE-005 (Exchange, CVE-2026-42897, exploitation active) mise à jour le 11/06, Exchange non hébergé (non applicable). Détail §3.3 |
 | GitHub Security Advisories | ✔ | 30/06/2026 | par composant | Angular, php/php-src, Three.js, Symfony |
-| CISA ICS Medical Advisories | ✗ à rattraper avant validation | - | non consultée | Fichier `cisa_ics_june2026.md` non fourni. WAF bloque WebFetch. Décision §6 |
+| CISA ICS Medical Advisories | ✔ | 30/06/2026 | 50 (0 applicable) | Scrapées via curl (pages 2-6 ; WAF bloque WebFetch). 5 ICSMA + 45 ICSA. 3 advisories DICOM vérifiés non applicables (OneOrtho utilise nanodicom + nifti-reader-js, pas DCMTK/OHIF/pydicom). Captures SharePoint + extrait `sources/cisa_ics_june2026.md`. Détail §3.3 |
 | FDA Medical Device Safety | ✔ | 03/06/2026 | 1 (hors périmètre) | Fichier `fda_safety_june2026.xlsx`. 1 comm. du 03/06 (implant cheville tiers, clinique non-cyber). Détail §3.3 |
 | ENISA Health sector | ☐ | - | - | Cadence trimestrielle, non activée ce mois |
 | H-ISAC | ✗ | - | - | Accès membre non activé à ce jour |
@@ -51,7 +51,7 @@ Décisions clés : montées Angular / tinymce / mathjs (P2, échéance 20/07) ; 
 | Dépendances tierces - Snyk SCA | ✗ à rattraper avant validation | - | non consultée | Export console Snyk non fourni. Décision §6. Couverture SCA partielle assurée par Dependabot ce mois |
 | Dépendances tierces - GitHub Dependabot | ✔ | export 06/07/2026 | 400 alertes / 177 CVE | 4 repos (one-platform, plannerHip3D, plannerKneeMadison, plannerShoulder3D). 7 critical, 188 high. 0 en KEV. Détail §3 |
 
-Synthèse : 15 sources ✔ consultées / 3 ✗ non consultables (CISA ICS et Snyk à rattraper avant validation ; H-ISAC accès non activé) / 3 ☐ planifiées (NVD, ENISA, NVD DICOM : cadence réduite ou consultées indirectement).
+Synthèse : 16 sources ✔ consultées / 2 ✗ non consultables (Snyk à rattraper avant validation ; H-ISAC accès non activé) / 3 ☐ planifiées (NVD, ENISA, NVD DICOM : cadence réduite ou consultées indirectement).
 
 ---
 
@@ -61,15 +61,15 @@ Synthèse : 15 sources ✔ consultées / 3 ✗ non consultables (CISA ICS et Sny
 
 | Indicateur | Valeur |
 |-----------|--------|
-| Total items examinés | ≈ 495 |
+| Total items examinés | ≈ 545 (dont 50 advisories CISA ICS/ICSMA) |
 | Applicables OneOrtho | 6 individuels (3 Angular Items 1-3, tinymce 6a, mathjs 6b, Node.js 7) + 4 groupes/lots (MSRC Critique 13 CVE, MSRC Important 96 CVE, lot build one-platform 6d-1, lot build modules Angular 6d-2) + lodash dev conclu (6c) |
 | MariaDB (report de mai, hors décompte juin) | 0 nouvelle CVE en juin ; 13 CVE de mai toujours en remédiation (montée non faite), suivi §5 |
-| Non applicables | ≈ 70 tracés (23 KEV hors stack, ≈ 36 CERT-FR fenêtre RSS, 5 Angular platform-server/service-worker/SSR, 2 Symfony ux-*, 2 PHP uriparser, 1 FDA, MariaDB CVE-2026-21968) |
+| Non applicables | ≈ 120 tracés (50 CISA ICS/ICSMA dont 3 DICOM vérifiés, 23 KEV hors stack, ≈ 36 CERT-FR fenêtre RSS, 5 Angular platform-server/service-worker/SSR, 2 Symfony ux-*, 2 PHP uriparser, 1 FDA, MariaDB CVE-2026-21968) |
 | À investiguer | 1 (version PHP déployée pour uriparser) |
 | Priorité P1 | 0 (aucune CVE applicable en KEV actif sur composant utilisé) |
-| Priorité P2 | 2 Angular XSS (CVE-2026-50557, CVE-2026-54265) + MSRC Critique (13 CVE) + tinymce (Item 6a) + mathjs (Item 6b) |
+| Priorité P2 | 2 Angular XSS (CVE-2026-50557, CVE-2026-54265) + MSRC Critique (13 CVE) + tinymce (Item 6a) |
 | Priorité P3 | 1 Angular DoS (CVE-2026-54268) + MSRC Important (96 CVE) |
-| Priorité P4 | Node.js build (Item 7) + lots build Dependabot (6d-1 one-platform 42 alertes, 6d-2 modules Angular 313 alertes) + lodash dev (6c, overrides) |
+| Priorité P4 | mathjs non exploitable (Item 6b, montée d'hygiène) + Node.js build (Item 7) + lots build Dependabot (6d-1 one-platform 42 alertes, 6d-2 modules Angular 313 alertes) + lodash dev (6c, overrides) |
 | Statut de remédiation au 06/07 | MSRC Critique + Important : corrigés 16/19 serveurs (build de juin) ; 3 résiduels (WEBPRODDEDIENNE au build de mai, WEBPRODGLOBALD, WEBPRODI2B). Defender mai : clôturé. À traiter : Angular Hip3D/KneeMadison, tinymce, mathjs, Node.js (ligne 22 → 22.23.0 + GLOBALD Node 16 EOL), lodash (overrides), MariaDB (16 instances), lots build |
 
 ### 3.2 Détail des items applicables
@@ -200,22 +200,22 @@ Synthèse : 15 sources ✔ consultées / 3 ✗ non consultables (CISA ICS et Sny
 | Échéance | 20/07/2026 (J+14) |
 | Responsable | Tech Lead one-platform |
 
-##### Item 6b : CVE-2026-40897 + CVE-2026-41139 (mathjs)
+##### Item 6b : CVE-2026-40897 + CVE-2026-41139 (mathjs) - investigation conclue, non exploitable
 
 | Champ | Valeur |
 |-------|--------|
-| Titre | Prototype pollution mathjs (setter de propriété non sûr / modification d'attribut dynamique) |
+| Titre | CWE-915 dans le parseur d'expressions mathjs (setter d'attribut non sûr / getter d'index de tableau non sûr) |
 | Source | GitHub Dependabot (plannerHip3D) ; GHSA-29qv-4j9f-fjw5, GHSA-jvff-x2qm-6286 |
 | Date publication | Remontée export du 06/07/2026 |
-| CVSS | ~8.8 (High) - C:H/I:H/A:H |
+| CVSS | ~8.8 (High) - C:H/I:H/A:H. Plage affectée 13.1.1 à <15.2.0, corrigé 15.2.0 |
 | Exploité activement (KEV) | Non |
 | Composant impacté | mathjs 15.1.1 installé (dépendance runtime directe, importée dans `nifti-slicer.ts` et `utils-slicer.ts`). Fix : 15.2.0 |
 | Produit concerné | plannerHip3D |
-| Exposition | Internet (module navigateur). Exploitation conditionnée à des données atteignant les setters mathjs : à investiguer le chemin via données image NIfTI |
-| Priorité retenue | P2 (CVSS >= 7, exposition internet, non KEV) |
-| Action décidée | Monter mathjs 15.1.1 vers 15.2.0 dans Hip3D. Vérifier présence/version dans KneeMadison et Shoulder3D |
+| Exposition | Internet (module navigateur) mais **chemin vulnérable non atteint**. Précondition des 2 CVE : évaluation d'expressions arbitraires via le parseur (`math.evaluate/parse/compile/Parser`). Investigation dépôt (17/07/2026) : 0 occurrence de ces API (`grep evaluate|parse|compile|parser|...` hors node_modules) ; mathjs n'est utilisé qu'en algèbre linéaire numérique (subtract, divide, norm, cross, matrix, multiply, transpose, dot). Les données NIfTI n'atteignent mathjs que comme opérandes numériques, jamais comme chaîne d'expression → CWE-915 non déclenchable. **Non exploitable dans l'usage actuel** |
+| Priorité retenue | P4 (non exploitable ; montée d'hygiène pour solder le finding SCA et la traçabilité MDR / IEC 62304). Requalifié de P2 après investigation |
+| Action décidée | `npm install mathjs@^15.2.0` (15.1.1 → >= 15.2.0) dans Hip3D pour sortir de la plage affectée. Vérifier présence/version dans KneeMadison et Shoulder3D |
 | Ticket remédiation | À créer en Jira, lié à CICD-170 |
-| Échéance | 20/07/2026 (J+14) |
+| Échéance | 04/10/2026 (J+90) |
 | Responsable | Tech Lead Angular (Hip3D) |
 
 ##### Item 6c : CVE-2026-4800 + CVE-2026-2950 (lodash) - investigation conclue, portée build
@@ -381,9 +381,22 @@ Juin 2026 entièrement consulté via l'archive `/avis/` (pages 1 à 17, AVI-0668
 
 **Alertes CERT-FR (`/alerte/`)** : aucune nouvelle alerte publiée en juin (ALE-005 reste la dernière de 2026). Les alertes actives concernent des produits hors stack : CERTFR-2026-ALE-005 (Microsoft Exchange, CVE-2026-42897, exploitation active, mise à jour 11/06) - Exchange non hébergé par OneOrtho, donc non applicable ; CERTFR-2026-ALE-004 (F5 BIG-IP APM) et CERTFR-2026-ALE-001 (Ivanti EPMM) hors stack. Conséquence : aucune menace activement exploitée signalée par CERT-FR ne touche le périmètre, ce qui conforte l'absence de P1. Les actualités (`/actualite/`, ex. ACT-028 du 29/06) sont des bulletins de synthèse non détaillés par CVE, non itemisés.
 
-#### CISA ICS / ICSMA (non consultée ce mois)
+#### CISA ICS / ICSMA du 01/06 au 30/06/2026 - 50 advisories, 0 applicable
 
-Fichier `cisa_ics_june2026.md` non fourni. Source marquée ✗ à rattraper avant validation (décision §6). En mai, 0 item applicable sur 55 advisories : la source n'a jamais remonté d'item stack, mais sa consultation reste une preuve d'audit à produire.
+Consultés via `curl` (pages 2 à 6, WebFetch bloqué par WAF) : **50 advisories** (5 ICSMA médical + 45 ICSA industriel), extraction en pièce probante `sources/cisa_ics_june2026.md` (captures d'écran officielles archivées dans le SharePoint entreprise). Aucun applicable, mais **3 advisories DICOM ont fait l'objet d'une vérification** car DICOM est dans le périmètre (§2.2 du plan) :
+
+**ICS Medical Advisories (ICSMA)**
+
+| Identifiant | Date | Produit | Raison non applicabilité |
+|-------------|------|---------|--------------------------|
+| ICSMA-26-176-01 | 25/06/2026 | pydicom / pynetdicom (bibliothèques Python) | Pas de composant Python DICOM chez OneOrtho. Le parsing DICOM est fait par `oneortho/nanodicom` (PHP, v1.4.0) et `nifti-reader-js` (JS), pas par pydicom/pynetdicom |
+| ICSMA-26-176-02 | 25/06/2026 | OHIF Viewers (DICOM) | Viewer OHIF (React) non utilisé ; les planificateurs sont en Angular avec rendu propre (Three.js / nifti-reader-js). Aucune dépendance `@ohif` dans les package.json |
+| ICSMA-26-181-01 | 30/06/2026 | OFFIS DCMTK Toolkit (C++) | DCMTK non utilisé ; aucun binaire/wrapper DCMTK dans le stack. DICOM traité via nanodicom (PHP) |
+| ICSMA-26-169-01 | 18/06/2026 | Apollo Pharmacy Blood Glucose Monitoring APG-01 BT | Glucomètre, dispositif non OneOrtho |
+
+Vérification menée sur le stack réel : implémentations DICOM d'OneOrtho = `oneortho/nanodicom` v1.4.0 (PHP) + `nifti-reader-js` ^0.8.0 (Hip3D, KneeMadison, Shoulder3D). Aucune des trois implémentations visées (pydicom, OHIF, DCMTK) n'est présente → non applicables, mais tracées comme vérifiées (pas écartées à l'aveugle). Point de vigilance reporté au §7 : surveiller nanodicom et nifti-reader-js, qui sont la vraie surface DICOM.
+
+**ICS Advisories industriels (45 items)** - tous hors périmètre (systèmes industriels / SCADA / IoT non utilisés) : Schneider Electric (×8), Rockwell (×6), Siemens (×5), Hitachi Energy (×3), Mitsubishi Electric (×3), ABB, Delta, Yokogawa, Horner, Daktronics, Hubbell, AzeoTech, Frangoteam, CP Plus, KMW, XCharge, NAVTOR, B&R, Yarbo, Naxclow, Brickcom, AVer, H.VIEW, EVoke, Impact. Liste complète en pièce probante.
 
 ---
 
@@ -398,7 +411,8 @@ Le mois de juin 2026 confirme la charge élevée sur la stack OneOrtho, avec un 
 - **Node.js** : le relevé des versions serveur a corrigé une hypothèse initiale erronée (« pas de Node en production »). Node est présent sur les serveurs, mais son rôle est confirmé **build-only** (`npm run build` des modules Angular, bundle servi ensuite par Symfony/IIS) : exposition hors ligne, exploitation réelle quasi nulle, donc P4 malgré 2 CVE High. Le batch du 18/06 est applicable (Item 7). Point saillant du relevé : un runtime **Node 16 EOL sur GLOBALD prod**, à traiter indépendamment du batch (fin de support).
 - **Symfony / PHP / Three.js / DICOM** : faible impact. Symfony 19/06 = 2 CVE `ux-*` non applicables. PHP = 2 CVE uriparser hors branche 8.1. Three.js et DICOM = 0 item.
 - **Exploitation active** : aucune CVE applicable au stack n'est en KEV actif (0 hit sur 23 ajouts de juin, sur 109 CVE MSRC de périmètre et sur 177 CVE Dependabot), et aucune alerte CERT-FR active (ALE-005 Exchange, ALE-004 F5, ALE-001 Ivanti) ne touche le périmètre. Double confirmation de l'absence de déclencheur P1.
-- **Sources non couvertes** : CISA ICS et Snyk non fournies ce mois. La mise en service de FreshRSS et l'automatisation MSRC/Dependabot restent prioritaires.
+- **DICOM** : premier mois où la veille CISA ICSMA remonte des advisories DICOM (DCMTK, OHIF, pydicom/pynetdicom). Aucun applicable, mais la vérification a confirmé que la surface DICOM réelle d'OneOrtho est `nanodicom` (PHP) et `nifti-reader-js` (JS), à intégrer à la veille ciblée (§7).
+- **Sources non couvertes** : seul Snyk reste non fourni ce mois (CISA ICS rattrapée via curl). La mise en service de FreshRSS et l'automatisation MSRC/Dependabot restent prioritaires.
 
 ---
 
@@ -437,11 +451,11 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 | 1 | Monter Hip3D (20.3.16 → 20.3.25) et KneeMadison (21.2.5 → 21.2.17) : couvre les 2 XSS + le DoS de juin et la dette Angular runtime accumulée | Items 1, 2, 3 | Tech Lead Angular | 20/07/2026 | À faire |
 | 2 | Appliquer le Patch Tuesday Windows Server du 09/06 sur le parc - volet Critique (13 CVE), prioriser CVE-2026-47291 HTTP.sys | Item 4 | DevSecOps + infrastructure | 20/07/2026 | En cours (16/19 au build de juin ; 3 résiduels) |
 | 3 | Appliquer le rouleau cumulatif pour les 96 CVE Important Windows Server (même passage que #2) | Item 5 | DevSecOps + infrastructure | 05/08/2026 | En cours (16/19 au build de juin ; 3 résiduels) |
-| 4 | Monter tinymce (>= 7.9.3) sur one-platform et mathjs (15.1.1 vers 15.2.0) sur Hip3D : items SCA runtime P2 | Items 6a, 6b | Tech Leads one-platform + Angular | 20/07/2026 | À faire |
-| 5 | Traiter le lot build modules Angular (Item 6d-2, 313 alertes P4), d'abord les 4 criticals (shell-quote, handlebars, protobufjs, basic-ftp) ; investiguer le chemin d'exploitation mathjs (Item 6b) | Items 6b, 6d-2 | Tech Lead Angular | 04/10/2026 (lot) ; 05/08/2026 (investig.) | À faire |
+| 4 | Monter tinymce (>= 7.9.3) sur one-platform : item SCA runtime P2 | Item 6a | Tech Lead one-platform | 20/07/2026 | À faire |
+| 5 | Traiter le lot build modules Angular (Item 6d-2, 313 alertes P4), d'abord les 4 criticals (shell-quote, handlebars, protobufjs, basic-ftp) ; montée d'hygiène mathjs vers 15.2.0 (Item 6b) | Items 6b, 6d-2 | Tech Lead Angular | 04/10/2026 | Investigation mathjs conclue le 17/07 (non exploitable : parseur d'expressions non utilisé) ; lot build + montée mathjs à faire |
 | 6 | Investiguer la version PHP réellement déployée en prod (applicabilité uriparser CVE-2026-44927/44928 : concernée si 8.4/8.5) | §3.3 PHP | DevSecOps | 05/08/2026 | À faire |
 | 7 | Node.js (batch 18/06, Item 7, build-only P4) : monter la ligne 22 vers >= 22.23.0 sur les 14 instances (hygiène + scanners CI) ; traiter en priorité GLOBALD prod (Node 16.13.2 EOL, hors batch) + aligner SAAS preprod (Node 20.19.5) | Item 7 | DevSecOps + infrastructure | 04/10/2026 ; GLOBALD EOL à anticiper | À faire |
-| 8 | Rattraper la consultation CISA ICS / ICSMA de juin (fichier non fourni) | Source §2 | DevSecOps | 08/07/2026 (avant validation) | À faire |
+| 8 | Consultation CISA ICS / ICSMA de juin | Source §2 | DevSecOps | 08/07/2026 | Fait (scrapé via curl, 50 advisories, 0 applicable ; 3 advisories DICOM vérifiés non applicables ; captures archivées SharePoint) |
 | 9 | Rattraper l'export Snyk SCA de juin (console interne) | Source §2 | DevSecOps | 08/07/2026 (avant validation) | À faire |
 | 10 | Relancer les décisions mai encore ouvertes : Symfony runtime/routing (tickets créés non traités, D1/D2), 4 fonctions PHP (investigation non démarrée, D8), montée Angular Hip3D/KneeMadison en prod (D10/D11) | §5 | Tech Leads + DevSecOps | 20/07/2026 | À faire |
 | 11 | Accélérer la montée MariaDB (13 CVE mai toujours applicables, CVE-2026-49261 CVSS 10.0) : ne pas laisser glisser au-delà de J+30 | §5 (report mai) | DevSecOps + infrastructure | 05/08/2026 | À faire |
@@ -456,6 +470,7 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 
 - **Clarifier la matrice §4.4 pour les cas frontaux** : XSS applicatif à exposition internet (souvent CVSS modéré mais risque réel) et DoS côté client (CVSS élevé mais impact limité au navigateur de la victime). La classification retenue en mai et reconduite en juin (XSS = P2, DoS client = P3) dévie de la lecture stricte de la matrice. Formaliser une règle explicite pour lever l'ambiguïté récurrente.
 - **Poursuivre ARCH-VERSIONS-CONVERGENCE** : la convergence porte ses fruits (Hip2D et Shoulder3D hors de portée du batch Angular de juin). Cible : aligner Hip3D et KneeMadison, réduire la dette transitive révélée par Dependabot.
+- **Surveiller les vraies briques DICOM du stack** : les 3 advisories DICOM de juin (DCMTK, OHIF, pydicom/pynetdicom) ne concernaient pas OneOrtho, mais ont montré que la veille DICOM générique n'est pas ciblée. Ajouter `oneortho/nanodicom` (PHP, v1.4.0) et `nifti-reader-js` (JS) comme composants explicitement suivis (advisories GitHub / NVD), puisqu'ils constituent la surface DICOM réelle. nanodicom étant un fork interne, prévoir une veille du dépôt amont.
 
 ### Côté outillage
 
@@ -471,7 +486,7 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 ### Sujets à traiter dans le rapport de juillet 2026
 
 - Statut des 11 décisions §6 ci-dessus.
-- Rattrapage CISA ICS et Snyk de juin.
+- Rattrapage de l'export Snyk de juin (CISA ICS déjà rattrapée).
 - Confirmation des statuts des décisions mai ouvertes (§5).
 - Patch Tuesday de juillet 2026 (anticiper le volume).
 - Effet de la campagne SCA Dependabot sur le nombre d'alertes ouvertes.
@@ -480,7 +495,7 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 
 ## 8. Export
 
-- Pièces probantes archivées avec le rapport : fichiers de `sources/` (KEV, MSRC, MariaDB, FDA, Dependabot x4) + annexe de traçabilité SCA `annexe_dependabot_june2026.md` (177 CVE Dependabot nommées).
+- Pièces probantes archivées avec le rapport : fichiers de `sources/` (KEV, MSRC, MariaDB, FDA, Dependabot x4, `cisa_ics_june2026.md`) + annexe de traçabilité SCA `annexe_dependabot_june2026.md` (177 CVE Dependabot nommées) + captures d'écran CISA ICS/ICSMA dans le SharePoint entreprise.
 - Publication Confluence : espace CyberSécurité > PSSI > Threat Intelligence, page `2026-06 Revue Threat Intelligence`.
 - Export PDF SharePoint OneOrthoGED : `Rapport mensuel - Revue Threat Intelligence - 2026-06.pdf`.
 - Notification Slack #comité_technique avec lien Confluence.
@@ -489,6 +504,6 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 
 ## Note de validation
 
-Rapport en statut **DRAFT**. La bascule DRAFT → VALIDATED (prévue le 08/07/2026, revue + J+2 ouvrés) est **conditionnée au rattrapage de deux sources non fournies** : CISA ICS / ICSMA de juin (décision #8) et export Snyk SCA de juin (décision #9). Dependabot couvre partiellement le besoin SCA ce mois. En l'état, le rapport ne doit pas être validé sans ces deux rattrapages, conformément au garde-fou du plan.
+Rapport en statut **DRAFT**. CISA ICS / ICSMA a été rattrapée (décision #8 : 50 advisories, 0 applicable, 3 DICOM vérifiés, captures archivées SharePoint). Il reste **une seule source non fournie** : l'export Snyk SCA de juin (décision #9). Dependabot couvre partiellement le besoin SCA ce mois. La bascule DRAFT → VALIDATED (prévue le 08/07/2026) reste conditionnée à ce rattrapage Snyk, conformément au garde-fou du plan.
 
 *Document généré dans le cadre du processus de revue Threat Intelligence - ISO 27001 A.5.7 / MDR Annexe I §17.2 / IEC 62304.*
