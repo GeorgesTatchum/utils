@@ -1,4 +1,4 @@
-# Rapport mensuel — Revue Threat Intelligence OneOrtho — {{YYYY-MM}}
+# Rapport mensuel - Revue Threat Intelligence OneOrtho - {{YYYY-MM}}
 
 Squelette à remplir. Remplacer tous les {{...}}. Conserver l'ordre des sections (aligné sur le template Confluence `template_rapport_mensuel_threat_intelligence.md`).
 
@@ -9,11 +9,11 @@ Squelette à remplir. Remplacer tous les {{...}}. Conserver l'ordre des sections
 | Champ | Valeur |
 |-------|--------|
 | Période couverte | 01/{{MM}}/{{YYYY}} au {{dernier jour}}/{{MM}}/{{YYYY}} |
-| Date de la revue | {{JJ/MM/AAAA — 1er jeudi du mois suivant}} |
+| Date de la revue | {{JJ/MM/AAAA - 1er jeudi du mois suivant}} |
 | Analyste | Georges TATCHUM |
-| Validé par | HK — Responsable Numérique |
-| Date de validation | {{JJ/MM/AAAA — revue + J+2 ouvrés}} |
-| Ticket Jira | CICD-{{XXX}} — SEC-THREATINTEL-{{YYYY-MM}} |
+| Validé par | HK - Responsable Numérique |
+| Date de validation | {{JJ/MM/AAAA - revue + J+2 ouvrés}} |
+| Ticket Jira | CICD-{{XXX}} - SEC-THREATINTEL-{{YYYY-MM}} |
 
 ---
 
@@ -31,7 +31,7 @@ Squelette à remplir. Remplacer tous les {{...}}. Conserver l'ordre des sections
 |--------|-----------|------------------------------|-------------------|-----------|
 | CISA KEV Catalog | | | | |
 | NVD / CVE | | | | |
-| CERT-FR (ANSSI) | | | | |
+| CERT-FR (ANSSI) avis + alertes | | | | |
 | GitHub Security Advisories | | | | |
 | CISA ICS Medical Advisories | | | | |
 | FDA Medical Device Safety | | | | |
@@ -48,8 +48,8 @@ Squelette à remplir. Remplacer tous les {{...}}. Conserver l'ordre des sections
 | Recherche NVD filtrée DICOM | | | | |
 | Three.js Security Advisories | | | | |
 | Three.js Releases | | | | |
-| Dépendances tierces — Snyk SCA | | | | |
-| Dépendances tierces — GitHub Dependabot | | | | |
+| Dépendances tierces - Snyk SCA | | | | |
+| Dépendances tierces - GitHub Dependabot | | | | |
 
 Synthèse : {{N}} sources ✔ consultées / {{N}} ✗ non consultables / {{N}} ☐ planifiées.
 
@@ -69,6 +69,7 @@ Synthèse : {{N}} sources ✔ consultées / {{N}} ✗ non consultables / {{N}} �
 | Priorité P2 | {{N}} |
 | Priorité P3 | {{N}} |
 | Priorité P4 | {{N}} |
+| Statut de remédiation au {{date}} | {{items déjà remédiés / en cours / à faire - ex. MSRC 13/14 serveurs}} |
 
 ### 3.2 Détail des items applicables
 
@@ -89,19 +90,27 @@ Une fiche par item P1/P2/P3 (P4 regroupables en liste). Titre = CVE-/GHSA-.
 | Exposition | Internet / Interne / Hors ligne |
 | Priorité retenue | P{{1-4}} |
 | Action décidée | {{patch / mitigation / monitoring / investigation}} |
+| Statut au {{date}} | {{optionnel : remédié / en cours N/M / à faire - si déjà (partiellement) corrigé}} |
 | Ticket remédiation | À créer en Jira, lié à CICD-{{XXX}} |
 | Échéance | {{date selon priorité}} |
 | Responsable | {{Tech Lead concerné / DevSecOps + infra}} |
+| Canaux secondaires | {{optionnel : autres sources ayant remonté la CVE - Dependabot, CERT-FR... défense en profondeur}} |
 
 ### 3.3 Items non applicables (traçabilité)
 
 Regrouper par source. Chaque ligne : identifiant / titre / motif de non-applicabilité.
 
-**{{Source}}**
+**{{Source éditeur}}**
 
 | ID | Titre | Raison non applicabilité |
 |----|-------|--------------------------|
 | | | |
+
+**CISA KEV** (toutes les CVE ajoutées au KEV dans la période, avec motif) :
+
+| CVE | Date d'ajout | Vendor / Produit | Raison non applicabilité |
+|-----|--------------|------------------|--------------------------|
+| | | | |
 
 **Items hors périmètre** (tracés, non comptés en applicables) :
 
@@ -119,7 +128,7 @@ Regrouper par source. Chaque ligne : identifiant / titre / motif de non-applicab
 
 ## 5. Suivi des items des mois précédents
 
-{{Premier exercice : "Premier exercice — sans objet pour ce mois." Sinon : tableau statut des tickets ouverts les mois précédents.}}
+{{Premier exercice : "Premier exercice - sans objet pour ce mois." Sinon : tableau statut des tickets ouverts les mois précédents.}}
 
 | Item (mois origine) | Ticket | Statut | Commentaire |
 |---------------------|--------|--------|-------------|
