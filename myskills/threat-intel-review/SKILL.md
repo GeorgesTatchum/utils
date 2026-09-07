@@ -37,7 +37,7 @@ Au démarrage, **afficher la liste précise des fichiers à télécharger, où l
 
 | Source (fallback manuel) | Où l'obtenir | Fichier attendu dans `sources/` |
 |--------------------------|--------------|--------------------------------|
-| MSRC (Windows Server / IIS) | MSRC Security Update Guide → export CSV du mois | `msrc_<moisannée>.csv` |
+| MSRC (Windows Server / IIS / .NET) | Semi-auto : `scripts/fetch_msrc_cvrf.py --month <moisannée> --dir .../sources` (un seul chemin ; KEV et relevé parc lus automatiquement s'ils sont déjà dans `sources/` sous leur nom conventionnel). Si l'API échoue : export CSV manuel depuis la Security Update Guide (mêmes colonnes de base) | `msrc_<moisannée>.csv` + `msrc_cvrf_raw_<moisannée>.json` (pièce probante) + `comparaison_parc_windows_<moisannée>.md` si un relevé parc est présent |
 | MariaDB Community Server | GitHub `mariadb-corporation/mariadb-docs` → `server/security/cve/community-server.md` (fichier complet, pas le WebFetch qui tronque) | `mariadb_community-server_<moisannée>.md` |
 | CISA KEV | `curl` du JSON officiel (`known_exploited_vulnerabilities.json`) — semi-auto | `kev_<moisannée>.json` |
 | CISA ICS / ICSMA | Page CISA ICS advisories (WAF bloque WebFetch) → copier la liste du mois | `cisa_ics_<moisannée>.md` |
@@ -45,6 +45,7 @@ Au démarrage, **afficher la liste précise des fichiers à télécharger, où l
 | Snyk SCA | Console Snyk OneOrtho → export du mois | `snyk_<moisannée>.csv` |
 | GitHub Dependabot | Onglet Security des repos `oneorthomedical/*` → export/compilation | `dependabot_<moisannée>.csv` |
 | Inventaire parc MariaDB (si mis à jour) | Inventaire infra interne | `curent-mariadb-onserver.md` (ou racine) |
+| Relevé parc Windows (build/UBR par serveur, si disponible) | Relevé manuel serveur par serveur (`Get-ItemProperty ... CurrentBuild, UBR`), cf. R9 | `parc_windows_<moisannée>.json` — instantané daté du mois, ne pas mutualiser en fichier racine unique. Traité au §5 (`--fleet` du script MSRC) |
 
 Adapter la liste au périmètre réel du mois (une source peut être sans objet). Ces fichiers deviennent aussi des **pièces probantes** (bordereau d'archivage).
 
@@ -115,13 +116,18 @@ Pour chaque source, tenter d'abord l'accès automatisé. Si échec (WAF, 403/404
 | PHP Security Releases | WebFetch `https://www.php.net/ChangeLog-8.php` | |
 | NEMA DICOM Newsroom | WebFetch `https://www.dicomstandard.org/news` | |
 
+### Sources semi-automatisées
+
+| Source | Méthode | Fichier dans `sources/` + traitement |
+|--------|---------|--------------------------------------|
+| MSRC (Windows Server, IIS, .NET) | `python3 myskills/threat-intel-review/scripts/fetch_msrc_cvrf.py --month <moisannée> --dir utils/hds/cyber/<moisannée>/sources` (API CVRF v3.0, filtre par **produit réellement affecté**, pas par balise/composant — voir §5 ; `--dir` déduit tous les chemins de la convention de nommage, y compris KEV et relevé parc s'ils existent déjà dans ce dossier — pas besoin de les repasser en argument). Lancer début de mois post-Patch Tuesday. Échec API → fallback manuel : export CSV depuis la Security Update Guide | `msrc_<moisannée>.csv` (colonnes enrichies : Plateformes affectées, Exploitation, Dans KEV, KB / build correctif) |
+
 ### Sources nécessitant un fallback manuel
 
 Ces sources sont lues depuis `utils/hds/cyber/<moisannée>/sources/` (fichiers déposés au §0bis).
 
 | Source | Pourquoi auto échoue | Fichier dans `sources/` + traitement |
 |--------|----------------------|--------------------------------------|
-| MSRC (Windows Server, IIS) | Page JS non scrapable | `msrc_<moisannée>.csv` → filtre Python : Windows Server 2016/2019/2022/2025 + IIS. Voir §5 |
 | MariaDB Community Server | GitHub raw tronque via WebFetch | `mariadb_community-server_<moisannée>.md` (fichier complet) → lire les CVE de l'année et croiser avec le parc. **Ne pas se fier au WebFetch du raw, il tronque** |
 | CISA ICS / ICSMA | WebFetch 403 (WAF) | **`curl` fonctionne** avec un User-Agent navigateur : `curl -s -A "Mozilla/5.0 ... Chrome/126 ..." "https://www.cisa.gov/news-events/ics-advisories?page=N"` (paginer N=1,2,3... pour couvrir le mois, ~10 advisories/page). Parser les liens `icsa-YY-DDD-NN` / `icsma-YY-DDD-NN` (l'ID encode l'année YY et le jour de l'année DDD → convertir en date). À défaut : `cisa_ics_<moisannée>.md` collé. **Croiser surtout les ICSMA (médical) et les advisories DICOM** |
 | FDA Medical Device Safety | 404 / WAF | `fda_safety_<moisannée>.md` (liste collée) |
@@ -136,22 +142,31 @@ Le CISA KEV (`kev_<moisannée>.json`, récupéré par curl) est traité comme so
 - ENISA Health, Recherche NVD filtrée DICOM : cadence trimestrielle.
 - H-ISAC : accès membre — marquer "non activé" si pas d'accès.
 
-## 5. Traiter l'export MSRC (Windows Server / IIS)
+## 5. Traiter l'export MSRC (Windows Server / IIS / .NET)
 
-Quand l'utilisateur fournit le CSV/XLSX MSRC :
+**Voie normale (script, `sources/msrc_<moisannée>.csv` produit par `fetch_msrc_cvrf.py`)** :
+- Le script filtre déjà par **produit réellement affecté** (`ProductStatuses` du CVRF, ex. "Windows Server 2022") plutôt que par balise/composant : périmètre fiable de fait, colonne "Plateformes affectées" nominative. Pas de liste blanche de composants à maintenir.
+- Il filtre déjà par mois de publication ("Date de publication" dans la période) et déduplique par CVE.
+- Colonne "KB / build correctif" = build cible par OS extrait directement du CVRF (`FixedBuild` des Remediations) : **c'est la source du build du Patch Tuesday du mois**, à comparer telle quelle au build courant du parc (pas de recherche manuelle sur `support.microsoft.com`, plus de risque de confondre avec le build du mois précédent).
+- KEV : déjà croisé si `--kev` a été fourni au script (colonne "Dans KEV").
+
+**Fallback manuel (CSV brut exporté depuis la Security Update Guide, si l'API MSRC est indisponible)** :
 - Pour XLSX : `pip install --break-system-packages --quiet openpyxl` si nécessaire, ou demander un CSV (plus simple).
-- **La colonne "Balise" du CSV est au niveau composant** (ex. "Windows Kernel", "Windows HTTP.sys", "Windows DWM Core Library"), **pas plateforme** : il n'y a pas de colonne "Windows Server 2016/2019/...". Filtrer donc le périmètre = balise contenant `Windows` + composants OS sans préfixe Windows (`.NET`, `ASP.NET Core`, `HTTP/2`, `Winlogon`, `Servicing Stack Updates`, `Active Directory Domain Services`, `Microsoft Graphics Component`, `Microsoft Defender`...). **Exclure** Edge, Office, SharePoint, Exchange, Visual Studio, Azure*, Dynamics, Copilot, M365, Teams, Android, "Window PC Manager" (produits non installés sur le serveur de prod).
+- **La colonne "Balise" du CSV est au niveau composant** (ex. "Windows Kernel", "Windows HTTP.sys", "Windows DWM Core Library"), **pas plateforme** : il n'y a pas de colonne "Windows Server 2016/2019/...". Filtrer donc le périmètre = balise contenant `Windows` + composants OS sans préfixe Windows (`.NET`, `ASP.NET Core`, `HTTP/2`, `Winlogon`, `Servicing Stack Updates`, `Active Directory Domain Services`, `Microsoft Graphics Component`, `Microsoft Defender`, `Remote Desktop Client`, `Device Health Attestation Service`...). **Exclure** Edge, Office, SharePoint, Exchange, Visual Studio, Azure*, Dynamics, Copilot, M365, Teams, Android, "Window PC Manager" (produits non installés sur le serveur de prod). **Limite connue (constatée juin 2026)** : cette liste blanche par balise a laissé passer 8 CVE Critiques (dont 7 RCE, balise "Remote Desktop Client") réellement affectées sur le parc Windows Server — la balise ne dit pas quelle plateforme est touchée. En cas de doute sur une balise non listée, ne pas l'exclure sans vérifier son `ProductStatuses` (ou repasser par le script dès que l'API est de nouveau accessible).
 - **Filtrer par mois de publication** : l'export contient souvent les mois adjacents (mai + juin + juillet). Ne garder que les CVE dont "Date de publication" tombe dans la période (`datetime.strptime(s,"%b %d, %Y")`).
 - Dédupliquer par CVE, regrouper par gravité (colonne "Gravité max." : Critique / Important) et impact ("Exécution de code à distance" = RCE, "Élévation de privilèges" = EoP...).
 - **Croiser les CVE de périmètre avec le KEV complet** (pas seulement les ajouts du mois) : garde-fou P1.
+
+**Dans les deux cas** :
 - Produire 2 items groupés : un pour les **Critiques** (titre = liste des CVE ; distinguer les RCE de l'éventuel EoP Critique), un pour les **Important** (titre = "MSRC Patch Tuesday <date> — N CVE Important Windows Server", volume + impact dominant). Signaler nommément les CVE RCE Critiques sur composants exposés internet (ex. HTTP.sys derrière IIS).
 - **Applicabilité MSRC = par écart de build**, pas en bloc. Une CVE de juin affecte un serveur tant que son build OS < build du Patch Tuesday de juin de son OS. L'applicabilité se démontre par l'écart de build (parc en retard = vulnérable) ; l'intérêt de la revue est de débusquer les serveurs en retard.
-- **Statut de remédiation par serveur, attention au piège du "build cible"** : quand l'utilisateur fournit l'état de patch du parc, **récupérer le numéro de build du Patch Tuesday DU MOIS COURANT par OS** depuis l'historique officiel Microsoft (WebFetch `support.microsoft.com/.../<os>-update-history`, ou recherche `<OS> <mois> <année> patch tuesday KB build`), **ne jamais le présumer**. Points de vigilance validés en juin 2026 :
+- **Statut de remédiation par serveur, attention au piège du "build cible"** : quand l'utilisateur fournit l'état de patch du parc, comparer au **numéro de build du Patch Tuesday DU MOIS COURANT par OS**. Si le CSV vient du script, le prendre directement dans la colonne "KB / build correctif" (une entrée par plateforme, ex. "Windows Server 2022: KB5094128 (build 10.0.20348.5256)") — **ne pas le présumer et ne pas le rechercher à la main dans ce cas**. Sinon (fallback manuel), le récupérer depuis l'historique officiel Microsoft (WebFetch `support.microsoft.com/.../<os>-update-history`, ou recherche `<OS> <mois> <année> patch tuesday KB build`), **ne jamais le présumer**. Points de vigilance validés en juin 2026 :
   - Le **« build cible » d'un inventaire infra correspond souvent au Patch Tuesday du mois PRÉCÉDENT** (l'inventaire suit les items du mois d'avant). Ex. juin 2026 : cible WS2022 = 20348.5139 = **mai** ; le build de **juin** = 20348.5256.
   - **« Patché » dans l'inventaire = "au build de la cible" (mois précédent), PAS "à jour du mois courant"**. Un serveur marqué « Patché » peut être un **résiduel** du mois courant (ex. juin 2026 : WEBPRODDEDIENNE marqué patché mais resté au build de mai 26100.32860, donc non couvert pour juin 26100.32995).
   - Les updates Windows sont cumulatifs, mais cela ne rend « couvert » qu'un serveur dont le build atteint **le build du mois courant** : comparer chiffre à chiffre `CurrentBuild.UBR` au build de juin par OS.
   - Builds Patch Tuesday juin 2026 (référence) : WS2022 20348.5256 (KB5094128), WS2025 26100.32995 (KB5094125), WS2016 14393.9234 (KB5094122).
   Reporter le ratio réel (ex. 16/19), nommer chaque serveur résiduel avec son build et son OS → décision §6 dédiée. Vérifier aussi la **taille réelle du parc** (l'inventaire peut être plus complet que le tableau d'un mois donné).
+  **Si un relevé du parc est déposé** dans `sources/parc_windows_<moisannée>.json` (nom, OS, environnement, CurrentBuild, UBR par serveur — cf. R9) **avant** de lancer le script avec `--dir`, il est détecté et traité automatiquement (pas de flag `--fleet` à ajouter à la main) : le script calcule le ratio couvert/résiduel et nomme les serveurs en retard, à coller tel quel depuis `comparaison_parc_windows_<moisannée>.md` dans le rapport (remplace le calcul manuel ci-dessus).
 - Si un nouvel export est fourni un autre jour, **comparer** (ajoutées / retirées / reclassées) avant de réécrire ; si identique sur le périmètre, ne mettre à jour que la référence du fichier source.
 
 ## 6. Croiser MariaDB par version

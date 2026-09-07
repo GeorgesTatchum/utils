@@ -502,6 +502,33 @@ Items récurrents à re-suivre : convergence des versions (Angular 20.3/21.2/22.
 
 ---
 
+## Addendum (04/09/2026) - Complément de traçabilité MSRC (Item 4)
+
+Ajouté a posteriori suite au développement de l'outillage R4 (script `fetch_msrc_cvrf.py`, croisement direct API MSRC CVRF v3.0 par produit affecté, cf. `tickets_recommandations_june2026.md`). Ne modifie pas les décisions ni le statut de remédiation ci-dessus, qui restent valides.
+
+**Constat** : le filtre manuel du §5 (balise/composant MSRC contenant "Windows" + liste blanche) a exclu 8 CVE Critiques par ailleurs correctement taguées "Critique" dans `msrc_june2026.csv`, car leur balise ("Remote Desktop Client", "Microsoft Azure Attestation service and Device Health Attestation Service") n'était pas dans la liste blanche. Le croisement par produit affecté (`ProductStatuses` du CVRF) confirme qu'elles touchent bien Windows Server 2016/2019/2022/2025 :
+
+| CVE | Titre | Impact |
+|-----|-------|--------|
+| CVE-2026-44799 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-44801 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-42985 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-42992 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-47654 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-48563 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-47289 | Remote Desktop Client Remote Code Execution Vulnerability | RCE |
+| CVE-2026-33828 | Windows Device Health Attestation (DHA) Elevation of Privilege Vulnerability | EoP |
+
+Total Critique réel du Patch Tuesday de juin sur le périmètre Windows Server/IIS/.NET : **21 CVE (20 RCE + 1 EoP)**, et non 13 (12 RCE + 1 EoP) comme indiqué à l'Item 4 et au résumé exécutif.
+
+**Risque résiduel** : nul au-delà de ce qui est déjà suivi. Les 8 CVE partagent les mêmes correctifs cumulatifs que l'Item 4 par OS (KB5094122 WS2016, KB5094123 WS2019, KB5094128 WS2022, KB5094125 WS2025) : elles sont donc déjà remédiées sur les 16/19 serveurs couverts par l'Item 4, et dans le même état sur les 3 serveurs résiduels (WEBPRODDEDIENNE, WEBPRODGLOBALD, WEBPRODI2B) déjà tracés à la décision #2. Aucun KEV, aucune exploitation publique documentée sur ces 8 CVE au 04/09/2026.
+
+**Cause racine** : le filtre par balise (composant) ne peut pas établir la plateforme réellement affectée — c'est justement la limite qui motive R4 (filtrage par produit via l'API CVRF, cf. `tickets_recommandations_june2026.md` R4). Voir mise à jour correspondante du skill `threat-intel-review` (§5).
+
+**Confirmation indépendante du statut de remédiation** : un relevé du parc Windows (`sources/parc_windows_june2026.json`, 19 serveurs, déposé le 04/09/2026) a été comparé automatiquement au build cible du Patch Tuesday de juin (`fetch_msrc_cvrf.py --fleet`). Résultat : **16/19 couverts, 3 résiduels (WEBPRODDEDIENNE, WEBPRODGLOBALD, WEBPRODI2B)**, identique au ratio et à la liste nommée à la décision #2 — confirme, par une méthode indépendante, que le statut de remédiation de l'Item 4 était exact. Fragment détaillé : `sources/comparaison_parc_windows_june2026.md`.
+
+---
+
 ## Note de validation
 
 Rapport en statut **DRAFT**. CISA ICS / ICSMA a été rattrapée (décision #8 : 50 advisories, 0 applicable, 3 DICOM vérifiés, captures archivées SharePoint). Il reste **une seule source non fournie** : l'export Snyk SCA de juin (décision #9). Dependabot couvre partiellement le besoin SCA ce mois. La bascule DRAFT → VALIDATED (prévue le 08/07/2026) reste conditionnée à ce rattrapage Snyk, conformément au garde-fou du plan.
