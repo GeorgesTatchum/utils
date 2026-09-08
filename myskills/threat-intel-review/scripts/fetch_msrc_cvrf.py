@@ -1,54 +1,11 @@
 #!/usr/bin/env python3
 r"""
-Récupère l'export MSRC du mois via l'API CVRF v3.0 (remplace l'export CSV manuel
-de la Security Update Guide) et produit un fichier au même format que
-sources/msrc_<moisannee>.csv, filtré sur le périmètre Windows Server / IIS / .NET.
+Collecte l'export MSRC du mois (API CVRF v3.0), filtré sur le périmètre Windows
+Server / IIS / .NET, et compare le parc au build cible du mois si un relevé est
+fourni. Voir README.md (ce dossier) pour le détail des arguments et des formats.
 
-Ticket d'origine : R4 (tickets_recommandations_juneXXXX.md), skill threat-intel-review.
-
-Usage recommandé (un seul chemin à donner, le dossier sources/ du mois — à lancer
-depuis n'importe quel répertoire, le chemin peut être relatif ou absolu) :
-    python3 fetch_msrc_cvrf.py --month august2026 --dir hds/cyber/august2026/sources
-
-Avec --dir, tous les fichiers sont dérivés de la convention <type>_<moisannée>.<ext>
-déjà utilisée dans sources/ (voir SKILL.md §0bis) : --out, --raw-out et
---fleet-report sont écrits dans --dir ; --kev et --fleet y sont lus automatiquement
-s'ils existent (sinon simplement ignorés, avec un message explicite — ni KEV ni
-relevé parc ne sont obligatoires). Pas besoin de retaper le nom du mois 5 fois.
-
-Usage explicite (chemins libres, utile si sources/ ne suit pas la convention, ou
-pour ne fournir/écraser qu'un seul chemin en particulier — chaque flag explicite a
-priorité sur ce que --dir aurait déduit) :
-    python3 fetch_msrc_cvrf.py --month june2026 \
-        --out utils/hds/cyber/june2026/sources/msrc_june2026.csv \
-        --kev utils/hds/cyber/june2026/sources/kev_june2026.json \
-        --raw-out utils/hds/cyber/june2026/sources/msrc_cvrf_raw_june2026.json \
-        --fleet utils/hds/cyber/june2026/sources/parc_windows_june2026.json \
-        --fleet-report utils/hds/cyber/june2026/sources/comparaison_parc_windows_june2026.md
-
-Sans réseau ou en cas d'erreur API : le script s'arrête avec un message explicite.
-Revenir alors au fallback manuel décrit au §0bis/§5 du SKILL.md (export CSV depuis
-la Security Update Guide).
-
---fleet (optionnel, déduit de --dir si présent sous ce nom) : relevé du parc
-Windows Server du mois, déposé dans sources/
-(pièce probante datée, ne pas écraser un fichier "current" en racine — un relevé
-par mois). Format JSON :
-    {
-      "date_releve": "2026-07-06",
-      "serveurs": [
-        {"nom": "WEBPRODDEDIENNE", "os": "Windows Server 2025", "environnement": "prod",
-         "CurrentBuild": "26100", "UBR": "32860"}
-      ]
-    }
-CurrentBuild/UBR = sortie telle quelle de, sur chaque serveur :
-    Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' |
-      Select-Object ProductName, CurrentBuild, UBR
-Avec --fleet fourni, le script calcule le ratio couvert/résiduel par comparaison
-au build cible du Patch Tuesday du mois (issu du CVRF) et écrit le détail dans
---fleet-report (fragment Markdown prêt à coller au §5/décision du rapport).
-Limite connue : suppose une base 10.0.x.y (valable pour WS2016 et plus récent ;
-ne couvre pas un éventuel WS2012 en ESU, base 6.2/6.3 — absent du parc actuel).
+Usage :
+    python3 fetch_msrc_cvrf.py --month <moisannee> --dir <dossier sources/ du mois>
 
 Dépendances : bibliothèque standard uniquement (pas de pip install).
 """

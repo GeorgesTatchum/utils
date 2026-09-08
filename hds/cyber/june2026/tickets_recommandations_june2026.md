@@ -19,9 +19,9 @@ Rattachés au **même ticket de session** que les remédiations (SEC-THREATINTEL
 | R3 | Veille ciblée DICOM (nanodicom, nifti-reader-js) | veille | DevSecOps | Q3 2026 | juin | à créer |
 | R4 | Automatiser l'export MSRC (API CVRF v3.0) | outillage | DevSecOps + infra | Q3 2026 | mai + juin | à créer (script livré 04/09, à valider sur un 2e mois) |
 | R5 | Mettre en place FreshRSS (sources RSS) | outillage | DevSecOps | Q3 2026 | mai + juin | à créer (angle mort) |
-| R6 | Industrialiser la SCA (Dependabot API + arbitrage Snyk / Dependency-Track) | outillage | DevSecOps | Q3 2026 | mai + juin | à créer |
+| R6 | Industrialiser la SCA (Dependabot API + arbitrage Snyk / Dependency-Track) | outillage | DevSecOps | Q3 2026 | mai + juin | à créer (arbitrage rendu + script livrés 07/09 ; reste plan §3/§4.4 + SMQ) |
 | R7 | Mettre à jour l'inventaire MariaDB après montée | gouvernance | DevSecOps + infra | Q3 2026 | juin | à créer |
-| R8 | Activer ou retirer H-ISAC du plan §3.2 | gouvernance | Responsable Numérique | Q3 2026 | mai + juin | à créer |
+| R8 | Retirer H-ISAC du plan §3.2 (adhésion 2000 $/an non justifiée) | gouvernance | Responsable Numérique | Q3 2026 | mai + juin | à créer |
 | R9 | Mettre en place le relevé mensuel du parc Windows (build/UBR par serveur) | outillage + gouvernance | DevSecOps + infra | Q3 2026 | apparue en septembre | à créer (relevé juin déposé et validé 04/09, à reproduire en conditions réelles) |
 
 Signal de priorisation : R4, R5, R6, R8 (et R2) **reviennent depuis mai** faute de ticket porteur : c'est exactement l'angle mort que ces tickets corrigent. R5 (FreshRSS) et R6 (industrialisation SCA) conditionnent la fiabilité des revues futures → à prioriser. R9 conditionne la partie build de R4 (sans ce relevé, la comparaison automatique du script n'a rien à comparer).
@@ -138,15 +138,25 @@ Type : Story (rattaché à SEC-THREATINTEL-2026-06 / CICD-170) · Priorité : Hi
 Contexte & objectif :
 La compilation Dependabot (400 alertes en juin) est manuelle et Snyk n'a pas été fourni (source SCA en attente). Objectif : industrialiser la collecte Dependabot (API GitHub) et arbitrer Snyk vs Dependabot vs Dependency-Track pour éviter la duplication non soutenable et fiabiliser le volet SCA (souveraineté SBOM).
 
+**Arbitrage rendu (07/09/2026)** : le problème n'était pas l'absence d'outil mais la réconciliation de trois canaux qui qualifient différemment la même vulnérabilité (identifiants et sévérité propres à Snyk, advisories sans CVE). Décision : **Dependabot par API = pivot unique de collecte** de la revue mensuelle ; **Snyk = gate de prévention en CI** (rôle inchangé, celui que décrivent le plan et le dossier de soumission) ; **Dependency-Track = preuve SBOM/VEX au dossier + contrôle de complétude sur le delta**. Le retrait de Snyk n'est pas à l'ordre du jour, donc aucune instruction RA préalable n'est sur le chemin critique. Justification, comparaison chiffrée des deux exports (VEX DT vs CSV Dependabot sur one-platform : 24 CVE communes, 15 propres à Dependabot, 72 propres à DT, volumes non comparables) et limites de la décision : `README_pivot_sca_dependabot.md`.
+
+Le déploiement technique de Dependency-Track (4.14.2, tous projets synchronisés, Snyk conservé en parallèle) est déjà fait ; le retard porte sur la documentation SMQ.
+
 Definition of Done :
-* [ ] Collecte Dependabot automatisée (API) avec tri runtime/build (flag dev)
-* [ ] Décision d'outillage SCA cible arbitrée et documentée
-* [ ] Snyk soit intégré au flux, soit remplacé/retiré du plan
+* [x] Collecte Dependabot automatisée (API) avec tri runtime/build (`dependency.scope`) — script `myskills/threat-intel-review/scripts/fetch_dependabot_alerts.py` livré le 07/09/2026, extraction par mois (`--month july2026`), CSV par repo au format de juin (writer validé par rejeu octet à octet du CSV one-platform de juin), CSV enrichi, fragment pivot dédupliqué, JSON brut, tableau de couverture par repo. Le fragment pivot produit directement les deux lanes de traitement du SKILL.md §6ter (itemisation individuelle runtime/mixte vs lot P4 hygiène pour build/dev), avec garde-fou KEV (un item build présent dans le KEV sort du lot pour traitement individuel P1). À confirmer en conditions réelles sur un mois (juillet ou août) avant clôture.
+* [x] Décision d'outillage SCA cible arbitrée et documentée (cf. `README_pivot_sca_dependabot.md`)
+* [x] Snyk positionné dans le flux : gate CI conservé, retiré de la collecte mensuelle, pas retiré du plan
+* [ ] Rôles des trois outils + limites de périmètre de Dependabot écrits au plan §3 (composants vendored/forks hors portée → R3 ; couche système → R4)
+* [ ] Règle d'identifiant pivot (CVE, sinon GHSA) et de sévérité de référence (CVSS, pas la classification Snyk) écrite au plan §4.4 — à coordonner avec R1
+* [ ] Trace mensuelle du contrôle de delta Snyk / Dependency-Track ajoutée au template de rapport, y compris quand le résultat est vide — outillée le 07/09/2026 (`scripts/compare_sca_delta.py`, rapprochement sur l'union CVE + GHSA, classement des résiduels en 4 cas, trace « contrôle non fait » si aucune source fournie) ; reste à insérer la ligne dans le template
+* [ ] Alertes et dependency graph confirmés actifs sur les 5 repos (`plannerHip2D` sans export en juin, à vérifier)
+* [ ] Documentation SMQ mise à jour pour refléter la liaison Dependency-Track à tous les projets
+* [ ] 3 points d'écart DT vérifiés avant tout usage quantitatif de DT (nom de projet `one-plateform` vs repo `one-platform`, version suivie `develop`, fraîcheur du SBOM)
 
 Bénéfice / risque si non traité :
 Volet SCA fragile (Snyk manquant a conditionné la validation de juin), duplication ingérable manuellement.
 
-Récurrence / historique : mai 2026 (éval Dependency-Track) + juin 2026 (Snyk non fourni, blocage validation).
+Récurrence / historique : mai 2026 (éval Dependency-Track) + juin 2026 (Snyk non fourni, blocage validation). Arbitrage rendu et script livré le 07/09/2026 ; reste la partie plan/SMQ et la validation du script sur un 2e mois.
 
 ---
 
@@ -169,20 +179,20 @@ Récurrence / historique : apparue en juin 2026 (conséquence de la montée mai 
 
 ---
 
-## R8 - [SEC][AMELIORATION][gouvernance] Décider du sort de la source H-ISAC dans le plan §3.2 (Threat Intel 2026-06)
+## R8 - [SEC][AMELIORATION][gouvernance] Retirer la source H-ISAC du plan §3.2 (Threat Intel 2026-06)
 
 Type : Task (rattaché à SEC-THREATINTEL-2026-06 / CICD-170) · Priorité : Low · Horizon : Q3 2026 · Responsable : Responsable Numérique
 Étiquettes : threat-intel, amelioration, sec-2026-06, gouvernance, veille
 
 Contexte & objectif :
-H-ISAC figure au plan §3.2 mais l'accès membre n'est pas activé ; elle est marquée « non activé » chaque mois. Objectif : décider explicitement d'activer l'accès (si pertinent) ou de retirer la source du plan, pour cesser de la traîner en « non activé ».
+H-ISAC figure au plan §3.2 mais l'accès membre n'est pas activé ; elle est marquée « non activé » chaque mois. Adhésion chiffrée à 2000 $/an. Le périmètre réel (DICOM traité numériquement, pas d'exploitation réseau clinique/PACS) est déjà couvert par les sources actives du plan (CISA ICS Medical, FDA Safety/Cybersecurity, HHS HC3, ENISA Health sector, ANSM Cybersécurité DM), qui se recoupent largement avec H-ISAC. La guidance FDA premarket cybersecurity (2023) ne mandate pas d'adhésion ISAO/ISAC spécifique — à faire confirmer par les Affaires Réglementaires si ce point doit être cité dans un dossier 510(k). Objectif : acter le retrait de H-ISAC du plan plutôt que de continuer à la traîner en « non activé ».
 
 Definition of Done :
-* [ ] Décision tranchée (activer / retirer) et documentée
-* [ ] Plan §3.2 mis à jour en conséquence
+* [ ] Retrait de H-ISAC validé par le Responsable Numérique (confirmation RA sur l'absence d'exigence FDA 510(k) si le point doit être documenté au dossier)
+* [ ] Plan §3.2 mis à jour (ligne H-ISAC supprimée)
 
 Bénéfice / risque si non traité :
-Source fantôme dans le plan, statut « non activé » répété sans décision.
+Source fantôme dans le plan, statut « non activé » répété sans décision, 2000 $/an potentiellement engagés sans valeur ajoutée démontrée sur ce périmètre.
 
 Récurrence / historique : mai 2026 + juin 2026.
 
