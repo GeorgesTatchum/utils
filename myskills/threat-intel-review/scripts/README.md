@@ -147,7 +147,7 @@ Attention, les deux modes écrivent sous les **mêmes noms de fichiers** : un ru
 | `--month` | oui | `<moisannée>` ex. `july2026`, `august2026`, ou `2026-07` |
 | `--dir` | oui | Dossier `sources/` du mois : reçoit les sorties, fournit `kev_<moisannée>.json` s'il y est déjà |
 | `--owner` | non | Organisation GitHub (défaut `oneorthomedical`) |
-| `--repos` | non | Liste séparée par des virgules (défaut : `one-platform,plannerHip2D,plannerHip3D,plannerKneeMadison,plannerShoulder3D`) |
+| `--repos` | non | Liste séparée par des virgules (défaut : `one-platform,plannerHip2D,plannerHip3D,plannerKneeMadison,plannerShoulder3D,nanodicom`) |
 | `--mode` | non | `instantane` (défaut) ou `nouveau`, cf. ci-dessous |
 | `--kev` | non | `kev_<moisannée>.json` déjà téléchargé — déduit de `--dir` si présent |
 | `--as-of` | non | Date de l'instantané (`AAAA-MM-JJ`) au lieu de la fin du mois, quand la collecte est faite en décalé. La date effective est inscrite dans le fragment pivot. |

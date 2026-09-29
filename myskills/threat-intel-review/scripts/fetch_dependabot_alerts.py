@@ -33,12 +33,16 @@ DEFAULT_OWNER = "oneorthomedical"
 # périmètre §2.2 du plan mais absent des exports de juin : le script l'interroge
 # pour que son absence devienne un constat tracé (alertes désactivées ? repo
 # renommé ?) au lieu d'un angle mort silencieux.
+# nanodicom (fork OneOrtho, composer) ajouté pour le ticket R3 : le scan
+# Dependabot ne couvre que le code du fork, pas les advisories de l'amont
+# réel (cf. R3, veille dédiée de l'amont hors périmètre de ce script).
 DEFAULT_REPOS = [
     "one-platform",
     "plannerHip2D",
     "plannerHip3D",
     "plannerKneeMadison",
     "plannerShoulder3D",
+    "nanodicom",
 ]
 
 MONTH_NUM = {

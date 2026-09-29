@@ -1,18 +1,19 @@
 # Pivot SCA Dependabot - august2026
 
-Généré par `fetch_dependabot_alerts.py` (mode `instantane`). **Instantané des alertes ouvertes au 2026-09-01.** Source pivot de la revue mensuelle : identifiant CVE si assigné, sinon GHSA. Dependency-Track et Snyk ne sont consultés qu'en contrôle de delta (cf. `README_pivot_sca_dependabot.md`).
+Généré par `fetch_dependabot_alerts.py` (mode `instantane`). **Instantané des alertes ouvertes au 2026-09-08.** Source pivot de la revue mensuelle : identifiant CVE si assigné, sinon GHSA. Dependency-Track et Snyk ne sont consultés qu'en contrôle de delta (cf. `README_pivot_sca_dependabot.md`).
 
-699 alertes, 272 identifiants pivot distincts.
+740 alertes, 286 identifiants pivot distincts.
 
 ## Couverture des repos
 
 | Repo | Alertes API | Retenues | Statut |
 |------|-------------|----------|--------|
-| one-platform | 156 | 78 | ok |
-| plannerHip2D | 150 | 144 | ok |
-| plannerHip3D | 409 | 259 | ok |
-| plannerKneeMadison | 370 | 184 | ok |
-| plannerShoulder3D | 42 | 34 | ok |
+| one-platform | 156 | 87 | ok |
+| plannerHip2D | 150 | 150 | ok |
+| plannerHip3D | 409 | 269 | ok |
+| plannerKneeMadison | 370 | 192 | ok |
+| plannerShoulder3D | 42 | 42 | ok |
+| nanodicom | 1 | 0 | ok |
 
 ## Mouvements du 2026-08-01 au 2026-09-01
 
@@ -25,6 +26,7 @@ Alimente le §5 (suivi d'un mois sur l'autre). « Ouvertes en fin de fenêtre »
 | plannerHip3D | 46 | 3 | 0 | 259 |
 | plannerKneeMadison | 35 | 0 | 0 | 184 |
 | plannerShoulder3D | 28 | 0 | 0 | 34 |
+| nanodicom | 0 | 0 | 0 | 0 |
 | **Total** | **155** | **3** | **0** | **699** |
 
 Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de l'évolution de la dette SCA (cf. ticket R2).
@@ -52,7 +54,11 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-69245 | guzzlehttp/guzzle | medium | one-platform | 7.15.2 | non |
 | GHSA-hcpx-6fm6-wx23 | axios | medium | one-platform | 1.18.0 | non |
 
-### Portée build (240)
+### Lot P4 hygiène — portée build/dev (253)
+
+Prêt à coller comme ticket unique (remédiation = une seule action, cf. SKILL.md §6ter) : **253 identifiants distincts, 77 paquets, 5 repos concernés**, aucun en KEV.
+
+### Détail (annexe de traçabilité) (253)
 
 | Identifiant | Paquet(s) | Sévérité | Repos | Version corrigée | KEV |
 |-------------|-----------|----------|-------|------------------|-----|
@@ -149,6 +155,7 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-55388 | piscina | high | plannerHip3D | 5.2.0 | non |
 | CVE-2026-55603 | http-proxy-middleware | high | plannerHip3D | 3.0.7 | non |
 | CVE-2026-56876 | extract-zip | high | plannerHip3D, plannerKneeMadison | - | non |
+| CVE-2026-59724 | engine.io | high | plannerHip3D, plannerKneeMadison | 6.6.7 | non |
 | CVE-2026-59725 | engine.io | high | plannerHip2D, plannerHip3D, plannerKneeMadison | 6.6.7 | non |
 | CVE-2026-59869 | js-yaml | high | plannerHip2D, plannerHip3D, plannerKneeMadison | 3.15.0, 4.3.0 | non |
 | CVE-2026-59874 | tar | high | plannerHip2D, plannerHip3D | 7.5.18 | non |
@@ -162,9 +169,16 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-69152 | brace-expansion | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 1.1.18, 2.1.4, 5.0.9 | non |
 | CVE-2026-69185 | socket.io-parser | high | plannerHip2D, plannerHip3D, plannerKneeMadison | 4.2.7 | non |
 | CVE-2026-69192 | ip-address | high | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 10.3.1 | non |
+| CVE-2026-73086 | nanoid | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison | 3.3.12 | non |
+| CVE-2026-73088 | browserslist | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 4.28.7 | non |
+| CVE-2026-73089 | browserslist | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 4.28.7 | non |
 | CVE-2026-73566 | tar | high | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 7.5.21 | non |
 | CVE-2026-73646 | postcss | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 8.5.18 | non |
 | CVE-2026-73650 | svgo | high | one-platform | 2.8.3 | non |
+| CVE-2026-75899 | fast-uri | high | plannerShoulder3D | 3.1.6 | non |
+| CVE-2026-75931 | fast-uri | high | plannerShoulder3D | 3.1.6 | non |
+| CVE-2026-75975 | fast-uri | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 3.1.6 | non |
+| CVE-2026-76172 | fast-uri | high | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 3.1.6 | non |
 | CVE-2026-9496 | pacote | high | plannerHip3D | 21.5.1 | non |
 | CVE-2026-9697 | undici | high | plannerHip2D | 7.28.0 | non |
 | GHSA-5c6j-r48x-rmvq | serialize-javascript | high | one-platform, plannerHip3D, plannerKneeMadison | 7.0.3 | non |
@@ -230,6 +244,7 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-45149 | brace-expansion | medium | one-platform, plannerHip3D | 5.0.6 | non |
 | CVE-2026-45736 | ws | medium | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison | 8.20.1 | non |
 | CVE-2026-45740 | protobufjs | medium | plannerHip3D | 7.5.8 | non |
+| CVE-2026-45822 | decode-uri-component | medium | one-platform | 0.5.0 | non |
 | CVE-2026-47673 | hono | medium | plannerHip2D, plannerHip3D, plannerKneeMadison | 4.12.21 | non |
 | CVE-2026-47674 | hono | medium | plannerHip2D, plannerHip3D, plannerKneeMadison | 4.12.21 | non |
 | CVE-2026-47675 | hono | medium | plannerHip2D, plannerHip3D, plannerKneeMadison | 4.12.21 | non |
@@ -261,10 +276,13 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-69153 | postcss | medium | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 8.5.23 | non |
 | CVE-2026-69198 | ip-address | medium | plannerHip2D, plannerKneeMadison, plannerShoulder3D | 10.2.2 | non |
 | CVE-2026-69207 | hono | medium | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 4.12.34 | non |
+| CVE-2026-71429 | stream-json | medium | plannerHip3D | 3.5.0 | non |
 | CVE-2026-71430 | re2 | medium | plannerHip3D | 1.25.1 | non |
 | CVE-2026-71498 | re2 | medium | plannerHip3D | 1.26.1 | non |
 | CVE-2026-71848 | hono | medium | plannerHip2D, plannerKneeMadison, plannerShoulder3D | 4.12.34 | non |
 | CVE-2026-71850 | hono | medium | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 4.12.34 | non |
+| CVE-2026-82417 | qs | medium | plannerKneeMadison | 6.16.0 | non |
+| CVE-2026-82562 | qs | medium | one-platform, plannerHip3D, plannerShoulder3D | 6.16.0 | non |
 | CVE-2026-8723 | qs | medium | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison | 6.15.2 | non |
 | CVE-2026-9595 | webpack-dev-server | medium | one-platform, plannerHip3D | 5.2.5 | non |
 | CVE-2026-9678 | undici | medium | plannerHip2D, plannerHip3D | 7.28.0 | non |
@@ -293,11 +311,12 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-49356 | @babel/core | low | one-platform, plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 7.29.6 | non |
 | CVE-2026-6733 | undici | low | plannerHip2D, plannerHip3D, plannerKneeMadison | 6.27.0, 7.28.0 | non |
 | CVE-2026-71849 | hono | low | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 4.12.34 | non |
+| CVE-2026-9358 | postcss-selector-parser | low | one-platform, plannerHip3D | 6.1.3, 7.1.3 | non |
 | GHSA-442j-39wm-28r2 | handlebars | low | plannerHip2D, plannerHip3D, plannerKneeMadison | 4.7.9 | non |
 | GHSA-g7r4-m6w7-qqqr | esbuild | low | plannerHip2D, plannerHip3D, plannerKneeMadison, plannerShoulder3D | 0.28.1 | non |
 | GHSA-gq3j-xvxp-8hrf | hono | low | plannerHip3D | 4.11.10 | non |
 
-### Portée mixte / non renseignee (16)
+### Portée mixte / non renseignee (17)
 
 | Identifiant | Paquet(s) | Sévérité | Repos | Version corrigée | KEV |
 |-------------|-----------|----------|-------|------------------|-----|
@@ -307,6 +326,7 @@ Ratio corrections / apparitions sur la fenêtre : 3/155 (2%). Mesure directe de 
 | CVE-2026-41139 | mathjs | high | plannerHip3D, plannerKneeMadison | 15.2.0 | non |
 | CVE-2026-54267 | @angular/core | high | plannerHip3D | 20.3.25 | non |
 | CVE-2026-69151 | @angular/compiler, @angular/core | high | plannerHip2D, plannerHip3D, plannerKneeMadison | 20.3.27, 21.2.19 | non |
+| CVE-2026-45820 | fflate | medium | plannerHip2D, plannerHip3D, plannerKneeMadison | 0.6.11, 0.8.3 | non |
 | CVE-2026-50557 | @angular/compiler, @angular/core | medium | plannerHip3D | 20.3.22 | non |
 | CVE-2026-52725 | @angular/core | medium | plannerHip3D | 20.3.22 | non |
 | CVE-2026-54265 | @angular/compiler | medium | plannerHip3D | 20.3.25 | non |
